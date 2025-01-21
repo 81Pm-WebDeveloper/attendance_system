@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from models.attendance import Attendance
 from datetime import datetime, date
-
+from sqlalchemy import asc, or_,desc
 from zk import ZK
 
 
@@ -86,13 +86,12 @@ def check_existing_record(db: Session, user_id, log_date):
                                                Attendance.date == log_date).count() > 0
 
 
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+
 
 def fetch_attendance(db: Session, page: int = 1, page_size: int = 10, search_query: str = None):
     offset = (page - 1) * page_size
-    
-    query = db.query(Attendance)
+
+    query = db.query(Attendance).order_by(desc(Attendance.date))
     if search_query:
         search_term = f"%{search_query}%"
         query = query.filter(
