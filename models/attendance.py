@@ -8,4 +8,4 @@ class Attendance(Base):
     date = Column(Date, nullable=False)
     time_in = Column(Time, nullable=False)
     time_out = Column(Time, nullable=True)
-    status = Column(String, nullable=True)
+    status = Column(String(30), nullable=True)
