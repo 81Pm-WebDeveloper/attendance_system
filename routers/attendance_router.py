@@ -33,8 +33,11 @@ def get_attendance(
     page: int = 1,
     page_size: int = 10,
     search_query: str = None,
+    date_filter: str = None,
+    status_filter:str = None,
+    employee_id_filter: str = None,
     db: Session = Depends(get_db)
 ):
-    return attendanceService.fetch_attendance(db, page, page_size, search_query)
+    return attendanceService.fetch_attendance(db, page, page_size, search_query,date_filter,status_filter,employee_id_filter)
     
     
