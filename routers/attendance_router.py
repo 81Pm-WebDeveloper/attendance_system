@@ -40,4 +40,12 @@ def get_attendance(
 ):
     return attendanceService.fetch_attendance(db, page, page_size, search_query,date_filter,status_filter,employee_id_filter)
     
+@router.get("/today/")
+def get_attendance_today(db: Session = Depends(get_db)):
+    try:
+        return attendanceService.fetch_attendance_today(db)
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
     
+   
+ 

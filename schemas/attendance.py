@@ -13,4 +13,11 @@ class AttendanceResponse(AttendanceBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class AttendanceToday(BaseModel):
+    employee_id: int
+    name: str
+    department: str
+    position: str
+    status: str

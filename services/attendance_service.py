@@ -2,10 +2,12 @@ from fastapi import HTTPException
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from models.attendance import Attendance
+from models.employees import Employee
 from datetime import datetime, date
 from sqlalchemy import asc, or_,desc
 from zk import ZK
-
+from sqlalchemy.sql import func
+from schemas.attendance import AttendanceToday
 
 load_dotenv()
 
@@ -79,14 +81,11 @@ def batch_insert_update_logs(conn,db: Session, today, employee_logs):
             db.add(existing_record)
 
     db.commit()
-    conn.clear_attendance()
+    #conn.clear_attendance()
 
 def check_existing_record(db: Session, user_id, log_date):
     return db.query(Attendance).filter(Attendance.employee_id == user_id,
                                                Attendance.date == log_date).count() > 0
-
-
-
 
 def fetch_attendance(
     db: Session,
@@ -135,3 +134,34 @@ def fetch_attendance(
     return response
 
 
+def fetch_attendance_today(db: Session, response_model=list[AttendanceToday]):
+    results = (
+        db.query(
+            Employee.employee_id,
+            Employee.name,
+            Employee.department,
+            Employee.position,
+            func.coalesce(Attendance.status, "No info").label("status"),
+        )
+        .join(
+            Attendance,
+            (Employee.employee_id == Attendance.employee_id) & 
+            (Attendance.date == func.current_date()),
+            isouter=True,  
+        )
+        .order_by(Employee.department.asc())
+        .all()
+    )
+    response = [
+        {
+            "employee_id": row.employee_id,
+            "name": row.name,
+            "department": row.department,
+            "position": row.position,
+            "date": date.today(),
+            "status": row.status,
+        }
+        for row in results
+    ]
+
+    return response
