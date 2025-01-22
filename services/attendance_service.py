@@ -88,10 +88,21 @@ def check_existing_record(db: Session, user_id, log_date):
 
 
 
-def fetch_attendance(db: Session, page: int = 1, page_size: int = 10, search_query: str = None):
+def fetch_attendance(
+    db: Session,
+    page: int = 1,
+    page_size: int = 10,
+    search_query: str = None,
+    date_filter: str = None,
+    status_filter: str = None,
+    employee_id_filter: str = None,
+):
     offset = (page - 1) * page_size
 
+    # Start the query
     query = db.query(Attendance).order_by(desc(Attendance.date))
+
+    # Apply general search query
     if search_query:
         search_term = f"%{search_query}%"
         query = query.filter(
@@ -102,8 +113,16 @@ def fetch_attendance(db: Session, page: int = 1, page_size: int = 10, search_que
             )
         )
 
+    if date_filter:
+        query = query.filter(Attendance.date == date_filter)
+    if status_filter:
+        query = query.filter(Attendance.status.ilike(f"%{status_filter}%"))
+    if employee_id_filter:
+        query = query.filter(Attendance.employee_id.ilike(f"%{employee_id_filter}%"))
+
     total_records = query.count()
 
+    
     records = query.offset(offset).limit(page_size).all()
 
     response = {
@@ -114,4 +133,5 @@ def fetch_attendance(db: Session, page: int = 1, page_size: int = 10, search_que
         "records": records,
     }
     return response
+
 
