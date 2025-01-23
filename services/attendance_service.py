@@ -7,7 +7,7 @@ from datetime import datetime, date
 from sqlalchemy import asc, or_,desc
 from zk import ZK
 from sqlalchemy.sql import func
-
+from math import ceil
 
 load_dotenv()
 
@@ -98,10 +98,8 @@ def fetch_attendance(
 ):
     offset = (page - 1) * page_size
 
-    # Start the query
     query = db.query(Attendance).order_by(desc(Attendance.date))
 
-    # Apply general search query
     if search_query:
         search_term = f"%{search_query}%"
         query = query.filter(
@@ -120,14 +118,14 @@ def fetch_attendance(
         query = query.filter(Attendance.employee_id.ilike(f"%{employee_id_filter}%"))
 
     total_records = query.count()
-
+    limit = ceil(total_records / page_size)
     
     records = query.offset(offset).limit(page_size).all()
 
     response = {
         "total_records": total_records,
         "page": page,
-        "page_size": page_size,
+        "limit": limit,
         "total_pages": (total_records + page_size - 1) // page_size,
         "records": records,
     }
@@ -147,7 +145,7 @@ def fetch_attendance_today(db: Session):
             Attendance,
             (Employee.employee_id == Attendance.employee_id) & 
             (Attendance.date == func.current_date()),
-            isouter=True,  
+            isouter=True, # OUTERRRR JOINNNNNNNNNNN
         )
         .order_by(Employee.department.asc())
         .all()
