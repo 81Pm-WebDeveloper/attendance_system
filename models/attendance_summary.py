@@ -1,0 +1,12 @@
+from sqlalchemy import Column, Integer, String, Date, Time, UniqueConstraint
+from db.database import Base
+
+class Summary(Base):
+    __tablename__ = "attendance_summary"
+    id = Column(Integer,primary_key=True)
+    employee_id = Column(Integer,nullable=False,index=True)
+    date = Column(Date, nullable=False, index=True) 
+    status = Column(String(30), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('employee_id', 'date', name='unique_employee_date'),)
+    

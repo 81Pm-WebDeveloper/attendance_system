@@ -7,7 +7,7 @@ from datetime import datetime, date
 from sqlalchemy import asc, or_,desc
 from zk import ZK
 from sqlalchemy.sql import func
-from schemas.attendance import AttendanceToday
+
 
 load_dotenv()
 
@@ -52,10 +52,10 @@ def fetch_logs_for_today(conn, db: Session):
         elif punch == "time-out":
             employee_logs[user_id]["time-out"] = timestamp
 
-    batch_insert_update_logs(conn,db, today, employee_logs)
+    batch_insert_update_logs(db, today, employee_logs)
 
 
-def batch_insert_update_logs(conn,db: Session, today, employee_logs):
+def batch_insert_update_logs(db: Session, today, employee_logs):
     inserts = []
     updates = []
 
@@ -134,7 +134,7 @@ def fetch_attendance(
     return response
 
 
-def fetch_attendance_today(db: Session, response_model=list[AttendanceToday]):
+def fetch_attendance_today(db: Session):
     results = (
         db.query(
             Employee.employee_id,
