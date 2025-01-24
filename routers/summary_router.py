@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import services.summary_service as summaryService
 import services.attendance_service as attendanceService
 from db.database import get_db
+from schemas.summary import UpdateSummary 
 from dotenv import load_dotenv
 import os
 
@@ -12,7 +13,7 @@ router = APIRouter()
 def insert_summary(
     db: Session = Depends(get_db),
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = None,
     search_query: str = None,
     date_filter: str = None,
     status_filter: str = None,
@@ -40,10 +41,10 @@ def insert_summary(
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 @router.get("/",status_code=200)
-def fetch_summary(
+def get_summary(
     db:Session = Depends(get_db),
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = None,
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
@@ -52,3 +53,11 @@ def fetch_summary(
         return summaryService.fetch_summary(db,page,page_size,search_query,date_from,date_to,employee_id_filter)
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
+
+@router.put("/{id}", status_code=200)
+def update_summary(id : int , data: UpdateSummary, db: Session = Depends(get_db)):
+    try:
+        updated_summary = summaryService.update_status(db,id,data)
+        return {"message": "Summary updated successfully", "summary": updated_summary}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
