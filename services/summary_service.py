@@ -5,9 +5,9 @@ from models.attendance import Attendance
 from models.employees import Employee
 from models.attendance_summary import Summary
 from datetime import datetime, date
-from sqlalchemy import asc, or_,desc
+from sqlalchemy import asc, or_,desc,func
+from schemas.summary import UpdateSummary
 from typing import Dict
-from sqlalchemy.sql import func
 from math import ceil
 
 
@@ -36,6 +36,8 @@ def insert_summary(db: Session, data):
         db.rollback() 
         raise Exception(f"Failed to insert summary data: {e}")
     
+
+
 def fetch_summary(
     db: Session,
     page: int = 1,
@@ -45,7 +47,10 @@ def fetch_summary(
     date_to: str = None,
     employee_id_filter: str = None,
 ) -> Dict:
-    offset = (page - 1) * page_size
+    if page_size:
+        offset = (page - 1) * page_size
+    else:
+        offset = 0  
 
     base_query = db.query(Summary)
 
@@ -67,7 +72,6 @@ def fetch_summary(
         base_query = base_query.filter(Summary.employee_id == employee_id_filter)
 
     total_count = base_query.count()
-    limit = ceil(total_count / page_size)
 
     status_counts = (
         base_query
@@ -77,14 +81,36 @@ def fetch_summary(
     )
     status_summary = {status: count for status, count in status_counts}
 
-    paginated_results = (
-        base_query.order_by(Summary.date.desc()).offset(offset).limit(page_size).all()
-    )
+    if page_size:
+        result = (
+            base_query.order_by(Summary.date.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+        limit = ceil(total_count / page_size)
+    else:
+        result = base_query.all() 
+        limit = total_count  
 
     return {
         "total_records": total_count,
-        "page": page,
+        "page": page if page_size else 1,  
         "limit": limit,
         "status_summary": status_summary,
-        "results": paginated_results,
+        "results": result,
     }
+
+
+def update_status(db: Session, id: int, data: UpdateSummary):
+    summary = db.query(Summary).filter(Summary.id == id).first()
+
+    if not summary:
+        raise ValueError("Summary id not found")
+    
+    summary.status = data.status
+    summary.remarks = data.remarks
+
+    db.commit()
+    db.refresh(summary)
+    return summary

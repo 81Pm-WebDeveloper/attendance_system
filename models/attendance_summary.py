@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Time, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, Time, UniqueConstraint,Text
 from db.database import Base
 
 class Summary(Base):
@@ -7,6 +7,6 @@ class Summary(Base):
     employee_id = Column(Integer,nullable=False,index=True)
     date = Column(Date, nullable=False, index=True) 
     status = Column(String(30), nullable=False)
-    
+    remarks = Column(Text)
     __table_args__ = (UniqueConstraint('employee_id', 'date', name='unique_employee_date'),)
     
