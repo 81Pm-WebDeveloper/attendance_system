@@ -12,7 +12,7 @@ router = APIRouter()
 def insert_summary(
     db: Session = Depends(get_db),
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = None,
     search_query: str = None,
     date_filter: str = None,
     status_filter: str = None,

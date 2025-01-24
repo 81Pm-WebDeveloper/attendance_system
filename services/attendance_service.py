@@ -38,19 +38,23 @@ def fetch_logs_for_today(conn, db: Session):
     employee_logs = {}
 
     for log in logs:
-        user_id = log.user_id
-        timestamp = str(log.timestamp).split(' ')[1]
-        punch = "time-in" if log.punch == 0 else "time-out"
+        log_date = log.timestamp.date()
+        date_now = datetime.now().date()
 
-        if user_id not in employee_logs:
-            employee_logs[user_id] = {"time-in": None, "time-out": None, "status": "Present"}
+        if log_date == date_now:
+            user_id = log.user_id
+            timestamp = str(log.timestamp).split(' ')[1]
+            punch = "time-in" if log.punch == 0 else "time-out"
 
-        if punch == "time-in" and employee_logs[user_id]["time-in"] is None:
-            time_in = datetime.strptime(timestamp, '%H:%M:%S').time()
-            employee_logs[user_id]["time-in"] = timestamp
-            employee_logs[user_id]["status"] = time_status(time_in)
-        elif punch == "time-out":
-            employee_logs[user_id]["time-out"] = timestamp
+            if user_id not in employee_logs:
+                employee_logs[user_id] = {"time-in": None, "time-out": None, "status": "Present"}
+
+            if punch == "time-in" and employee_logs[user_id]["time-in"] is None:
+                time_in = datetime.strptime(timestamp, '%H:%M:%S').time()
+                employee_logs[user_id]["time-in"] = timestamp
+                employee_logs[user_id]["status"] = time_status(time_in)
+            elif punch == "time-out":
+                employee_logs[user_id]["time-out"] = timestamp
 
     batch_insert_update_logs(db, today, employee_logs)
 
@@ -67,9 +71,16 @@ def batch_insert_update_logs(db: Session, today, employee_logs):
             if times["time-out"]:
                 updates.append({"time_out": times["time-out"], "employee_id": emp_id, "date": today})
         else:
-            inserts.append(
-                {"employee_id": emp_id, "date": today, "time_in": times["time-in"], "time_out": times["time-out"],
-                 "status": times["status"]})
+            if times["time-in"]:
+                inserts.append({
+                    "employee_id": emp_id,
+                    "date": today,
+                    "time_in": times["time-in"],
+                    "time_out": times["time-out"],
+                    "status": times["status"]
+                })
+            else:
+                print(f"Skipping insert for employee_id {emp_id} on {today} because time_in is missing.")
 
     if inserts:
         db.bulk_insert_mappings(Attendance, inserts)
@@ -96,17 +107,15 @@ def fetch_attendance(
     status_filter: str = None,
     employee_id_filter: str = None,
 ):
-    offset = (page - 1) * page_size
-
     query = db.query(Attendance).order_by(desc(Attendance.date))
 
     if search_query:
         search_term = f"%{search_query}%"
         query = query.filter(
             or_(
-                Attendance.date.ilike(search_term),  
-                Attendance.status.ilike(search_term), 
-                Attendance.employee_id.ilike(search_term),  
+                Attendance.date.ilike(search_term),
+                Attendance.status.ilike(search_term),
+                Attendance.employee_id.ilike(search_term),
             )
         )
 
@@ -118,18 +127,33 @@ def fetch_attendance(
         query = query.filter(Attendance.employee_id.ilike(f"%{employee_id_filter}%"))
 
     total_records = query.count()
-    limit = ceil(total_records / page_size)
-    
-    records = query.offset(offset).limit(page_size).all()
 
-    response = {
-        "total_records": total_records,
-        "page": page,
-        "limit": limit,
-        "total_pages": (total_records + page_size - 1) // page_size,
-        "records": records,
-    }
+    if page is None or page_size is None or page == 0 or page_size == 0:
+        records = query.all()
+
+        response = {
+            "total_records": total_records,
+            "page": 1,
+            "limit": total_records,  
+            "total_pages": 1,
+            "records": records,
+        }
+    else:
+        offset = (page - 1) * page_size
+        limit = ceil(total_records / page_size)
+
+        records = query.offset(offset).limit(page_size).all()
+
+        response = {
+            "total_records": total_records,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total_records + page_size - 1) // page_size,
+            "records": records,
+        }
+
     return response
+
 
 
 def fetch_attendance_today(db: Session):
@@ -144,7 +168,7 @@ def fetch_attendance_today(db: Session):
         .join(
             Attendance,
             (Employee.employee_id == Attendance.employee_id) & 
-            (Attendance.date == func.current_date()),
+            (Attendance.date == date.today()),
             isouter=True, # OUTERRRR JOINNNNNNNNNNN
         )
         .order_by(Employee.department.asc())
