@@ -56,8 +56,8 @@ def fetch_logs_for_today(conn, db: Session):
             elif punch == "time-out":
                 employee_logs[user_id]["time-out"] = timestamp
 
-    batch_insert_update_logs(db, today, employee_logs)
-
+    logs_today = batch_insert_update_logs(db, today, employee_logs)
+    return logs_today
 
 def batch_insert_update_logs(db: Session, today, employee_logs):
     inserts = []
@@ -90,20 +90,23 @@ def batch_insert_update_logs(db: Session, today, employee_logs):
                                                                   Attendance.date == today).first()
             existing_record.time_out = update["time_out"]
             db.add(existing_record)
-
     db.commit()
+    return inserts,updates
     #conn.clear_attendance()
 
 def check_existing_record(db: Session, user_id, log_date):
     return db.query(Attendance).filter(Attendance.employee_id == user_id,
                                                Attendance.date == log_date).count() > 0
 
+
+
 def fetch_attendance(
     db: Session,
     page: int = 1,
     page_size: int = 10,
     search_query: str = None,
-    date_filter: str = None,
+    date_from: str = None,
+    date_to: str = None,
     status_filter: str = None,
     employee_id_filter: str = None,
 ):
@@ -119,8 +122,13 @@ def fetch_attendance(
             )
         )
 
-    if date_filter:
-        query = query.filter(Attendance.date == date_filter)
+    if date_from and date_to:
+        query = query.filter(Attendance.date.between(date_from, date_to))
+    elif date_from:
+        query = query.filter(Attendance.date >= date_from)
+    elif date_to:
+        query = query.filter(Attendance.date <= date_to)
+
     if status_filter:
         query = query.filter(Attendance.status.ilike(f"%{status_filter}%"))
     if employee_id_filter:
@@ -134,7 +142,7 @@ def fetch_attendance(
         response = {
             "total_records": total_records,
             "page": 1,
-            "limit": total_records,  
+            "limit": total_records,
             "total_pages": 1,
             "records": records,
         }
@@ -153,6 +161,7 @@ def fetch_attendance(
         }
 
     return response
+
 
 
 

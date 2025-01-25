@@ -12,26 +12,20 @@ router = APIRouter()
 @router.post("/", status_code=200)
 def insert_summary(
     db: Session = Depends(get_db),
-    page: int = 1,
-    page_size: int = None,
-    search_query: str = None,
-    date_filter: str = None,
-    status_filter: str = None,
-    employee_id_filter: str = None,
     ):
     try:
-        response = attendanceService.fetch_attendance(db,page,page_size,search_query,date_filter,status_filter,employee_id_filter)
+        response = attendanceService.fetch_attendance_today(db)
 
         data = [
             {
-                "employee_id": row.employee_id,
-                "date": row.date,
-                "status": row.status
+                "employee_id": row["employee_id"],
+                "date": row["date"],
+                "status": row["status"],
             }
-            for row in response["records"]
+            for row in response
         ]
         
-        entries =summaryService.insert_summary(db, data)
+        entries = summaryService.insert_summary(db, data)
 
         return {"detail": f"Summary logs inserted",
                 "data": entries}
