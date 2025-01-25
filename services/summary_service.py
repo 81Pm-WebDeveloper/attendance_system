@@ -19,22 +19,32 @@ def insert_summary(db: Session, data):
         for item in data:
             emp_date = (item['employee_id'], item['date'])  
             
-            existing_entry = db.query(Summary).filter(Summary.employee_id == item['employee_id'], 
-                                                      Summary.date == item['date']).first()
+            existing_entry = db.query(Summary).filter(
+                Summary.employee_id == item['employee_id'], 
+                Summary.date == item['date']
+            ).first()
             
-            if not existing_entry:  
+            if existing_entry:  
+                existing_entry.status = item.get('status', existing_entry.status)
+                db.add(existing_entry)
+            else:
                 if emp_date not in unique_employee_dates:  
                     unique_entries.append(item)
                     unique_employee_dates.add(emp_date)
-                else:
+                else:                        
                     print(f"Duplicate employee_id found for Date {item['date']} and employee_id {item['employee_id']}")
-        db.bulk_insert_mappings(Summary, unique_entries)
+        
+        # Insert new entries in bulk
+        if unique_entries:
+            db.bulk_insert_mappings(Summary, unique_entries)
+        
         db.commit()
         return unique_entries  
     
     except Exception as e:
         db.rollback() 
         raise Exception(f"Failed to insert summary data: {e}")
+
     
 
 
