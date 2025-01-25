@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from models.attendance import Attendance
 from models.employees import Employee
 from datetime import datetime, date
-from sqlalchemy import asc, or_,desc
+from sqlalchemy import or_,desc
 from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil

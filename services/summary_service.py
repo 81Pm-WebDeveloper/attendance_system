@@ -1,8 +1,6 @@
 from fastapi import HTTPException
 #from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-from models.attendance import Attendance
-from models.employees import Employee
 from models.attendance_summary import Summary
 from datetime import datetime, date
 from sqlalchemy import asc, or_,desc,func
@@ -34,7 +32,6 @@ def insert_summary(db: Session, data):
                 else:                        
                     print(f"Duplicate employee_id found for Date {item['date']} and employee_id {item['employee_id']}")
         
-        # Insert new entries in bulk
         if unique_entries:
             db.bulk_insert_mappings(Summary, unique_entries)
         
@@ -46,7 +43,6 @@ def insert_summary(db: Session, data):
         raise Exception(f"Failed to insert summary data: {e}")
 
     
-
 
 def fetch_summary(
     db: Session,

@@ -4,8 +4,6 @@ import services.summary_service as summaryService
 import services.attendance_service as attendanceService
 from db.database import get_db
 from schemas.summary import UpdateSummary 
-from dotenv import load_dotenv
-import os
 
 router = APIRouter()
 
