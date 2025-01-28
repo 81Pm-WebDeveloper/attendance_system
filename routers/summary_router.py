@@ -46,6 +46,26 @@ def get_summary(
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
+@router.get("/count")
+def fetch_summary_count(
+    db: Session = Depends(get_db),
+    search_query: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    employee_id_filter: str = None,
+):
+    try:
+        summary_data = summaryService.fetch_count(
+            db=db,
+            search_query=search_query,
+            date_from=date_from,
+            date_to=date_to,
+            employee_id_filter=employee_id_filter,
+        )
+        return summary_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching summary: {str(e)}")
+
 @router.put("/{id}", status_code=200)
 def update_summary(id : int , data: UpdateSummary, db: Session = Depends(get_db)):
     try:
