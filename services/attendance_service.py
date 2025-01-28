@@ -173,6 +173,7 @@ def fetch_attendance_today(db: Session):
             Employee.department,
             Employee.position,
             func.coalesce(Attendance.status, "No info").label("status"),
+            Attendance.time_in
         )
         .join(
             Attendance,
@@ -190,6 +191,7 @@ def fetch_attendance_today(db: Session):
             "department": row.department,
             "position": row.position,
             "date": date.today(),
+            "time_in": row.time_in,
             "status": row.status,
         }
         for row in results

@@ -7,6 +7,8 @@ from sqlalchemy import asc, or_,desc,func
 from schemas.summary import UpdateSummary
 from typing import Dict
 from math import ceil
+from models.employees import Employee
+from collections import defaultdict
 
 
 def insert_summary(db: Session, data):
@@ -22,9 +24,10 @@ def insert_summary(db: Session, data):
                 Summary.date == item['date']
             ).first()
             
-            if existing_entry:  
-                existing_entry.status = item.get('status', existing_entry.status)
-                db.add(existing_entry)
+            if existing_entry:
+                if existing_entry.status == 'No info': 
+                    existing_entry.status = item.get('status', existing_entry.status)
+                    db.add(existing_entry)
             else:
                 if emp_date not in unique_employee_dates:  
                     unique_entries.append(item)
@@ -58,7 +61,12 @@ def fetch_summary(
     else:
         offset = 0  
 
-    base_query = db.query(Summary)
+    base_query = db.query(
+        Summary,
+        Employee.name.label("employee_name"),  
+        Employee.position.label("employee_position"), 
+        Employee.department.label("employee_department"),
+    ).join(Employee, Summary.employee_id == Employee.employee_id)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -66,6 +74,9 @@ def fetch_summary(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
+                Employee.name.like(search_term), 
+                Employee.position.like(search_term),
+                Employee.department.like(search_term)  
             )
         )
 
@@ -104,8 +115,92 @@ def fetch_summary(
         "page": page if page_size else 1,  
         "limit": limit,
         "status_summary": status_summary,
-        "results": result,
+        "results": [
+            {
+                **summary.__dict__,  # Flatten the Summary object into a dict
+                "employee_name": employee_name,
+                "employee_position": employee_position,
+                "department": employee_department,
+            }
+            for summary, employee_name, employee_position, employee_department in result
+        ],
     }
+
+
+def fetch_count(
+    db: Session,
+    search_query: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    employee_id_filter: str = None,
+) -> Dict:
+    base_query = db.query(
+        Summary,
+        Employee.name.label("employee_name"),  
+        Employee.position.label("employee_position"), 
+        Employee.department.label("employee_department"),
+    ).join(Employee, Summary.employee_id == Employee.employee_id)
+
+    if search_query:
+        search_term = f"%{search_query}%"
+        base_query = base_query.filter(
+            or_(
+                Summary.employee_id.like(search_term),
+                Summary.status.like(search_term),
+                Employee.name.like(search_term), 
+                Employee.position.like(search_term),
+                Employee.department.like(search_term)  
+            )
+        )
+
+    if date_from:
+        base_query = base_query.filter(Summary.date >= date_from)
+    if date_to:
+        base_query = base_query.filter(Summary.date <= date_to)
+
+    if employee_id_filter:
+        base_query = base_query.filter(Summary.employee_id == employee_id_filter)
+
+    result = base_query.order_by(Summary.date.desc()).all()
+
+    employee_summary = defaultdict(lambda: {
+        "employee_name": None,
+        "employee_position": None,
+        "employee_department": None,
+        "status_counts": defaultdict(int)
+    })
+
+    for summary, employee_name, employee_position, employee_department in result:
+        employee_key = summary.employee_id
+
+        employee_summary[employee_key]["employee_name"] = employee_name
+        employee_summary[employee_key]["employee_position"] = employee_position
+        employee_summary[employee_key]["employee_department"] = employee_department
+        employee_summary[employee_key]["status_counts"][summary.status] += 1
+
+    final_results = [
+        {
+            "employee_name": data["employee_name"],
+            "employee_position": data["employee_position"],
+            "employee_department": data["employee_department"],
+            "status_counts": dict(data["status_counts"]),
+        }
+        for data in employee_summary.values()
+    ]
+
+    status_counts = (
+        base_query
+        .with_entities(Summary.status, func.count(Summary.status))
+        .group_by(Summary.status)
+        .all()
+    )
+    status_summary = {status: count for status, count in status_counts}
+
+    return {
+        "status_summary": status_summary,
+        "results": final_results,
+    }
+
 
 
 def update_status(db: Session, id: int, data: UpdateSummary):
