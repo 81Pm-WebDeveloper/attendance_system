@@ -18,6 +18,8 @@ def insert_summary(
             {
                 "employee_id": row["employee_id"],
                 "date": row["date"],
+                "time_in":row["time_in"],
+                "time_out":row["time_out"],
                 "status": row["status"],
             }
             for row in response

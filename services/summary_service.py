@@ -28,6 +28,12 @@ def insert_summary(db: Session, data):
                 if existing_entry.status == 'No info': 
                     existing_entry.status = item.get('status', existing_entry.status)
                     db.add(existing_entry)
+                if existing_entry.time_in is None and item.get('time_in'):
+                    existing_entry.time_in = item['time_in']
+                    db.add(existing_entry)
+                if existing_entry.time_out is None and item.get('time_out'):
+                    existing_entry.time_out = item['time_out']
+                    db.add(existing_entry)
             else:
                 if emp_date not in unique_employee_dates:  
                     unique_entries.append(item)
@@ -44,6 +50,7 @@ def insert_summary(db: Session, data):
     except Exception as e:
         db.rollback() 
         raise Exception(f"Failed to insert summary data: {e}")
+
 
     
 
@@ -117,7 +124,7 @@ def fetch_summary(
         "status_summary": status_summary,
         "results": [
             {
-                **summary.__dict__,  # Flatten the Summary object into a dict
+                **summary.__dict__,  
                 "employee_name": employee_name,
                 "employee_position": employee_position,
                 "department": employee_department,
