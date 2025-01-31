@@ -10,9 +10,11 @@ router = APIRouter()
 @router.post("/", status_code=200)
 def insert_summary(
     db: Session = Depends(get_db),
+    start_date = str,
+    end_date = str 
     ):
     try:
-        response = attendanceService.fetch_attendance_today(db)
+        response = attendanceService.fetch_attendance_between_dates(db,start_date,end_date)
 
         data = [
             {

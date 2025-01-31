@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from models.attendance import Attendance
 from models.employees import Employee
 from datetime import datetime, date
-from sqlalchemy import or_,desc
+from sqlalchemy import or_,desc,and_
 from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil
@@ -193,6 +193,45 @@ def fetch_attendance_today(db: Session):
             "position": row.position,
             "date": date.today(),
             "time_in": row.time_in,
+            "time_out": row.time_out,
+            "status": row.status,
+        }
+        for row in results
+    ]
+
+    return response
+def fetch_attendance_between_dates(db: Session, start_date: date, end_date: date):
+    results = (
+        db.query(
+            Employee.employee_id,
+            Employee.name,
+            Employee.department,
+            Employee.position,
+            func.coalesce(Attendance.status, "No info").label("status"),
+            Attendance.date,
+            Attendance.time_in,
+            Attendance.time_out
+        )
+        .join(
+            Attendance,
+            and_(
+                Employee.employee_id == Attendance.employee_id,
+                Attendance.date.between(start_date, end_date)
+            ),
+            isouter=True  # OUTER JOIN to include employees even if no attendance record exists
+        )
+        .order_by(Employee.department.asc(), Attendance.date.asc())
+        .all()
+    )
+
+    response = [
+        {
+            "employee_id": row.employee_id,
+            "name": row.name,
+            "department": row.department,
+            "position": row.position,
+            "date": row.date,
+            "time_in": row.time_in ,
             "time_out": row.time_out,
             "status": row.status,
         }
