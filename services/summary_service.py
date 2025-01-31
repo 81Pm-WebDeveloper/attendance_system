@@ -17,6 +17,7 @@ def insert_summary(db: Session, data):
         unique_employee_dates = set()
         
         for item in data:
+            item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])  
             
             existing_entry = db.query(Summary).filter(
@@ -31,9 +32,11 @@ def insert_summary(db: Session, data):
                 if existing_entry.time_in is None and item.get('time_in'):
                     existing_entry.time_in = item['time_in']
                     db.add(existing_entry)
-                if existing_entry.time_out is None and item.get('time_out'):
-                    existing_entry.time_out = item['time_out']
-                    db.add(existing_entry)
+                if item.get('time_out'):
+                    if existing_entry.time_out is None or item['time_out'] > existing_entry.time_out:
+                        existing_entry.time_out = item['time_out']
+                        db.add(existing_entry)
+            
             else:
                 if emp_date not in unique_employee_dates:  
                     unique_entries.append(item)
