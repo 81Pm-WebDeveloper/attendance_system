@@ -4,7 +4,7 @@ import services.summary_service as summaryService
 import services.attendance_service as attendanceService
 from db.database import get_db
 from schemas.summary import UpdateSummary 
-
+from typing import List
 router = APIRouter()
 
 @router.post("/", status_code=200)
@@ -70,10 +70,11 @@ def fetch_summary_count(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching summary: {str(e)}")
 
-@router.put("/{id}", status_code=200)
-def update_summary(id : int , data: UpdateSummary, db: Session = Depends(get_db)):
+
+@router.put("/", status_code=200)
+def update_summary(updates: List[UpdateSummary], db: Session = Depends(get_db)):
     try:
-        updated_summary = summaryService.update_status(db,id,data)
+        updated_summary = summaryService.update_status(db,updates)
         return {"message": "Summary updated successfully", "summary": updated_summary}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
