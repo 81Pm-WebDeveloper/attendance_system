@@ -5,7 +5,7 @@ from models.attendance_summary import Summary
 from datetime import datetime, date
 from sqlalchemy import asc, or_,desc,func
 from schemas.summary import UpdateSummary
-from typing import Dict
+from typing import Dict, List
 from math import ceil
 from models.employees import Employee
 from collections import defaultdict
@@ -213,15 +213,28 @@ def fetch_count(
 
 
 
-def update_status(db: Session, id: int, data: UpdateSummary):
-    summary = db.query(Summary).filter(Summary.id == id).first()
+def update_status(db: Session, updates: List[UpdateSummary]):
+    updated_summaries = []
+    failed_updates = []
 
-    if not summary:
-        raise ValueError("Summary id not found")
-    
-    summary.status = data.status
-    summary.remarks = data.remarks
+    for data in updates:
+        summary = db.query(Summary).filter(Summary.id == data.id).first()
 
+        if not summary:
+            failed_updates.append(data.id)
+            continue  
+
+        summary.status = data.status
+        summary.remarks = data.remarks
+        updated_summaries.append(summary)
+
+    if not updated_summaries:
+        raise HTTPException(status_code=400, detail="No records to update")
+
+    db.bulk_save_objects(updated_summaries)
     db.commit()
-    db.refresh(summary)
-    return summary
+
+    for summary in updated_summaries:
+        db.refresh(summary)
+
+    return {"updated": [summary.id for summary in updated_summaries], "failed": failed_updates}
