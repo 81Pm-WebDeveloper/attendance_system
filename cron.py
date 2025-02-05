@@ -7,6 +7,8 @@ from db.database import engine
 import os
 
 
+#SCHEDULED TASK
+
 SessionLocal = sessionmaker(bind=engine)
 
 Session = SessionLocal()
@@ -104,8 +106,13 @@ if __name__ == "__main__":
 
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
-    conn = connect_to_device(device_ip, port)
-    
 
-   
-    test = fetch_logs_for_today(conn, Session)
+    try:
+        conn = connect_to_device(device_ip, port)
+        test = fetch_logs_for_today(conn, Session)
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        Session.close()  
+        conn.enable_device() 
+        conn.disconnect()  
