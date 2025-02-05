@@ -26,7 +26,7 @@ def insert_summary(db: Session, data):
             ).first()
             
             if existing_entry:
-                if existing_entry.status == 'No info': 
+                if existing_entry.status in ['No info']: 
                     existing_entry.status = item.get('status', existing_entry.status)
                     db.add(existing_entry)
                 if existing_entry.time_in is None and item.get('time_in'):
