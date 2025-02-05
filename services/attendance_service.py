@@ -91,7 +91,7 @@ def batch_insert_update_logs(db: Session, today, employee_logs):
             existing_record.time_out = update["time_out"]
             db.add(existing_record)
     db.commit()
-    return inserts,updates
+    return inserts
     #conn.clear_attendance()
 
 def check_existing_record(db: Session, user_id, log_date):
@@ -218,7 +218,7 @@ def fetch_attendance_between_dates(db: Session, start_date: date, end_date: date
                 Employee.employee_id == Attendance.employee_id,
                 Attendance.date.between(start_date, end_date)
             ),
-            isouter=True  # OUTER JOIN to include employees even if no attendance record exists
+            isouter=True  
         )
         .order_by(Employee.department.asc(), Attendance.date.asc())
         .all()

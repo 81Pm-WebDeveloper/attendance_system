@@ -8,7 +8,7 @@ import os
 
 router = APIRouter()
 load_dotenv()
-
+#LOCAL
 @router.post("/",status_code=200)
 def insert_attendance(db: Session = Depends(get_db)):
     try:
@@ -21,14 +21,14 @@ def insert_attendance(db: Session = Depends(get_db)):
             conn.enable_device()
             conn.disconnect()
 
-        return {"detail": "Attendance logs processed successfully."
-                ,"date": response}
+        return {"detail": "Attendance logs processed successfully."}
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 
+#DEPLOY
 @router.get("/")
 def get_attendance(
     page: int = 1,
