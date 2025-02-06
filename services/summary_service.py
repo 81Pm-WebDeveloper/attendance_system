@@ -7,7 +7,7 @@ from sqlalchemy import asc, or_,desc,func
 from schemas.summary import UpdateSummary
 from typing import Dict, List
 from math import ceil
-from models.employees import Employee
+from models.emp_list import Employee2
 from collections import defaultdict
 
 
@@ -26,7 +26,7 @@ def insert_summary(db: Session, data):
             ).first()
             
             if existing_entry:
-                if existing_entry.status in ['No info']: 
+                if existing_entry.status == 'No info': 
                     existing_entry.status = item.get('status', existing_entry.status)
                     db.add(existing_entry)
                 if existing_entry.time_in is None and item.get('time_in'):
@@ -73,10 +73,10 @@ def fetch_summary(
 
     base_query = db.query(
         Summary,
-        Employee.name.label("employee_name"),  
-        Employee.position.label("employee_position"), 
-        Employee.department.label("employee_department"),
-    ).join(Employee, Summary.employee_id == Employee.employee_id)
+        Employee2.fullname.label("employee_name"),  
+        Employee2.position.label("employee_position"), 
+        Employee2.company.label("employee_department"),  #CHANGEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    ).join(Employee2, Summary.employee_id == Employee2.empID)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -84,9 +84,9 @@ def fetch_summary(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
-                Employee.name.like(search_term), 
-                Employee.position.like(search_term),
-                Employee.department.like(search_term)  
+                Employee2.fullname.like(search_term), 
+                Employee2.position.like(search_term),
+                Employee2.company.like(search_term)  
             )
         )
 
@@ -146,10 +146,10 @@ def fetch_count(
 ) -> Dict:
     base_query = db.query(
         Summary,
-        Employee.name.label("employee_name"),  
-        Employee.position.label("employee_position"), 
-        Employee.department.label("employee_department"),
-    ).join(Employee, Summary.employee_id == Employee.employee_id)
+        Employee2.fullname.label("employee_name"),  
+        Employee2.position.label("employee_position"), 
+        Employee2.company.label("employee_department"),
+    ).join(Employee2, Summary.employee_id == Employee2.empID)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -157,9 +157,9 @@ def fetch_count(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
-                Employee.name.like(search_term), 
-                Employee.position.like(search_term),
-                Employee.department.like(search_term)  
+                Employee2.fullname.like(search_term), 
+                Employee2.position.like(search_term),
+                Employee2.company.like(search_term)  
             )
         )
 
