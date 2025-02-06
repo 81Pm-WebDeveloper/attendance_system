@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from models.attendance import Attendance
-from models.employees import Employee
+from models.emp_list import Employee2
 from datetime import datetime, date
 from sqlalchemy import or_,desc,and_
 from zk import ZK
@@ -162,34 +162,37 @@ def fetch_attendance(
 
     return response
 
-
+#Add conditions
+#IF employee status  == active 
+#Check workdays to avoid no info 
 
 
 def fetch_attendance_today(db: Session):
     results = (
         db.query(
-            Employee.employee_id,
-            Employee.name,
-            Employee.department,
-            Employee.position,
+            Employee2.empID, #empID
+            Employee2.fullname, #fullname
+            Employee2.company, #Company 
+            Employee2.position, #position 
+            Employee2.branch, #branch
             func.coalesce(Attendance.status, "No info").label("status"),
             Attendance.time_in,
             Attendance.time_out
         )
         .join(
             Attendance,
-            (Employee.employee_id == Attendance.employee_id) & 
+            (Employee2.empID == Attendance.employee_id) & 
             (Attendance.date == date.today()),
             isouter=True, # OUTERRRR JOINNNNNNNNNNN
         )
-        .order_by(Employee.department.asc())
+        .order_by(Employee2.department.asc())
         .all()
     )
     response = [
         {
-            "employee_id": row.employee_id,
-            "name": row.name,
-            "department": row.department,
+            "employee_id": row.empID,
+            "name": row.fullname,
+            "department": row.company,
             "position": row.position,
             "date": date.today(),
             "time_in": row.time_in,
@@ -200,35 +203,42 @@ def fetch_attendance_today(db: Session):
     ]
 
     return response
+
+
+
+
 def fetch_attendance_between_dates(db: Session, start_date: date, end_date: date):
+    today = date.today().strftime('%a').upper()
     results = (
-        db.query(
-            Employee.employee_id,
-            Employee.name,
-            Employee.department,
-            Employee.position,
-            func.coalesce(Attendance.status, "No info").label("status"),
-            Attendance.date,
-            Attendance.time_in,
-            Attendance.time_out
-        )
-        .join(
-            Attendance,
-            and_(
-                Employee.employee_id == Attendance.employee_id,
-                Attendance.date.between(start_date, end_date)
-            ),
-            isouter=True  
-        )
-        .order_by(Employee.department.asc(), Attendance.date.asc())
-        .all()
+    db.query(
+        Employee2.empID,  # empID
+        Employee2.fullname,  # fullname
+        Employee2.company,  # change to company
+        Employee2.position,
+        func.coalesce(Attendance.status, "No info").label("status"),
+        Attendance.date,
+        Attendance.time_in,
+        Attendance.time_out
+    )
+    .filter(Employee2.status == "active")
+    .filter(func.find_in_set(today, Employee2.work_sched) > 0)
+    .join(
+        Attendance,
+        and_(
+            Employee2.empID == Attendance.employee_id,
+            Attendance.date.between(start_date, end_date),
+        ),
+        isouter=True  
+    )
+    .order_by(Employee2.department.asc(), Attendance.date.asc())
+    .all()
     )
 
     response = [
         {
-            "employee_id": row.employee_id,
-            "name": row.name,
-            "department": row.department,
+            "employee_id": row.empID,
+            "name": row.fullname,
+            "department": row.company,
             "position": row.position,
             "date": row.date,
             "time_in": row.time_in ,
