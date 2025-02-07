@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from db.database import engine
+from db.database2 import engine2
 from models.attendance import Attendance
 from models.employees import Employee
 from models.attendance_summary import Summary
@@ -16,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 Attendance.metadata.create_all(bind=engine)
 Employee.metadata.create_all(bind=engine)
 Summary.metadata.create_all(bind=engine)
-Employee2.metadata.create_all(bind=engine)
+Employee2.metadata.create_all(bind=engine2)
 
 
 

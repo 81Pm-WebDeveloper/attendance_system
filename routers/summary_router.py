@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import services.summary_service as summaryService
 import services.attendance_service as attendanceService
 from db.database import get_db
+from db.database2 import get_db2
 from schemas.summary import UpdateSummary 
 from typing import List
 router = APIRouter()
@@ -10,11 +11,12 @@ router = APIRouter()
 @router.post("/", status_code=200)
 def insert_summary(
     db: Session = Depends(get_db),
+    db2: Session = Depends(get_db2),
     start_date = str,
     end_date = str 
     ):
     try:
-        response = attendanceService.fetch_attendance_between_dates(db,start_date,end_date)
+        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
 
         data = [
             {
@@ -36,9 +38,10 @@ def insert_summary(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@router.get("/",status_code=200)
+@router.get("/",status_code=200)  # DONEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 def get_summary(
-    db:Session = Depends(get_db),
+    db1:Session = Depends(get_db),
+    db2:Session = Depends(get_db2),
     page: int = 1,
     page_size: int = None,
     search_query: str = None,
@@ -46,13 +49,14 @@ def get_summary(
     date_to: str = None,
     employee_id_filter: str = None):
     try:
-        return summaryService.fetch_summary(db,page,page_size,search_query,date_from,date_to,employee_id_filter)
+        return summaryService.fetch_summary(db1,db2,page,page_size,search_query,date_from,date_to,employee_id_filter)
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
 @router.get("/count")
 def fetch_summary_count(
     db: Session = Depends(get_db),
+    db2: Session = Depends(get_db2),
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
@@ -60,11 +64,12 @@ def fetch_summary_count(
 ):
     try:
         summary_data = summaryService.fetch_count(
-            db=db,
-            search_query=search_query,
-            date_from=date_from,
-            date_to=date_to,
-            employee_id_filter=employee_id_filter,
+            db,
+            db2,
+            search_query,
+            date_from,
+            date_to,
+            employee_id_filter,
         )
         return summary_data
     except Exception as e:

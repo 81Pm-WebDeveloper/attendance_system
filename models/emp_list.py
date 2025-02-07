@@ -1,9 +1,10 @@
 from sqlalchemy import Column, Integer, String, Date,DateTime, TIMESTAMP
-from db.database import Base
+from db.database2 import Base
 
 class Employee2(Base):
     __tablename__ = 'emp_list'
-    empID = Column(Integer, primary_key=True)
+    idx = Column(Integer,primary_key=True)
+    empID = Column(Integer)
     fullname = Column(String(35), nullable=True)
     username = Column(String(20),nullable=True)
     password = Column(String(50),nullable=True)
