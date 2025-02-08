@@ -9,8 +9,7 @@ from typing import Dict, List
 from math import ceil
 from models.emp_list import Employee2
 from collections import defaultdict
-from db.database import SessionLocal
-from db.database2 import SessionLocal2
+
 
 def insert_summary(db: Session, data):
     try:

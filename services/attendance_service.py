@@ -254,11 +254,10 @@ def fetch_attendance_today(db: Session):
 
 #     return result
 
-
+# Linear
 def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
-    #change this to range(temporary fix)
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    today = start_date.strftime('%a').upper()
+   
+    today = date.today().strftime('%a').upper()
 
     employees = db2.query(
         Employee2.empID,
@@ -276,7 +275,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
         Attendance.status
     ).filter(Attendance.date.between(start_date, end_date)).all()
 
-    # Corrected initialization
+
     attendance_dict = {emp.empID: [] for emp in employees}
 
     for att in attendance_data:
@@ -285,17 +284,16 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
 
     result = []
     for employee in employees:
-        if attendance_dict[employee.empID]: 
+        if attendance_dict[employee.empID]: # DICTIONARY o(1) look up
             for att in attendance_dict[employee.empID]:
                 result.append({
                     "employee_id": employee.empID,
                     "date": att.date,
                     "time_in": att.time_in,
                     "time_out": att.time_out,
-                    "status": att.status if att.status else "No info",
+                    "status": att.status,
                 })
         else:
-          
             result.append({
                 "employee_id": employee.empID,
                 "date": None,

@@ -16,7 +16,7 @@ def insert_summary(
     end_date = str 
     ):
     try:
-        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
+        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date) #first loop
 
         data = [
             {
@@ -26,10 +26,10 @@ def insert_summary(
                 "time_out":row["time_out"],
                 "status": row["status"],
             }
-            for row in response
+            for row in response #loop 2
         ]
         
-        entries = summaryService.insert_summary(db, data)
+        entries = summaryService.insert_summary(db, data) # loop 3
 
         return {"detail": f"Summary logs inserted",
                 "data": entries}
