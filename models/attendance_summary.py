@@ -10,5 +10,3 @@ class Summary(Base):
     time_out = Column(Time)
     status = Column(String(30), nullable=False)
     remarks = Column(Text)
-    __table_args__ = (UniqueConstraint('employee_id', 'date', name='unique_employee_date'),)
-    

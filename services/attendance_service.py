@@ -8,6 +8,9 @@ from sqlalchemy import or_,desc,and_
 from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil
+from db.database import SessionLocal
+from db.database2 import SessionLocal2
+
 
 load_dotenv()
 
@@ -207,45 +210,96 @@ def fetch_attendance_today(db: Session):
 
 
 
-def fetch_attendance_between_dates(db: Session, start_date: date, end_date: date):
+# def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
+#     today = date.today().strftime('%a').upper()
+
+#     employees = db2.query(
+#         Employee2.empID,
+#         Employee2.fullname,
+#         Employee2.company,
+#         Employee2.position,
+#         Employee2.status,
+#         Employee2.work_sched
+#     ).filter(
+#         Employee2.status == "Active",
+#         func.find_in_set(today, Employee2.work_sched) > 0  
+#     ).all()
+
+   
+#     attendance_data = db1.query(
+#         Attendance.employee_id,
+#         Attendance.date,
+#         Attendance.time_in,
+#         Attendance.time_out,
+#         Attendance.status
+#     ).filter(Attendance.date.between(start_date, end_date)).all()
+
+    
+#     result = []
+#     for employee in employees:
+#         employee_attendance = [
+#             att for att in attendance_data if att.employee_id == employee.empID
+#         ]
+#         for att in employee_attendance:
+#             result.append({
+#                 "employee_id": employee.empID,
+#                 "name": employee.fullname,
+#                 "department": employee.company,
+#                 "position": employee.position,
+#                 "date": att.date,
+#                 "time_in": att.time_in,
+#                 "time_out": att.time_out,
+#                 "status": att.status if att.status else "No info",
+#             })
+
+#     return result
+
+# Linear
+def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
+   
     today = date.today().strftime('%a').upper()
-    results = (
-    db.query(
-        Employee2.empID,  # empID
-        Employee2.fullname,  # fullname
-        Employee2.company,  # change to company
-        Employee2.position,
-        func.coalesce(Attendance.status, "No info").label("status"),
+
+    employees = db2.query(
+        Employee2.empID,
+        Employee2.work_sched
+    ).filter(
+        Employee2.status == "Active",
+        func.find_in_set(today, Employee2.work_sched) > 0  
+    ).all()
+
+    attendance_data = db1.query(
+        Attendance.employee_id,
         Attendance.date,
         Attendance.time_in,
-        Attendance.time_out
-    )
-    .filter(Employee2.status == "active")
-    .filter(func.find_in_set(today, Employee2.work_sched) > 0)
-    .join(
-        Attendance,
-        and_(
-            Employee2.empID == Attendance.employee_id,
-            Attendance.date.between(start_date, end_date),
-        ),
-        isouter=True  
-    )
-    .order_by(Employee2.department.asc(), Attendance.date.asc())
-    .all()
-    )
+        Attendance.time_out,
+        Attendance.status
+    ).filter(Attendance.date.between(start_date, end_date)).all()
 
-    response = [
-        {
-            "employee_id": row.empID,
-            "name": row.fullname,
-            "department": row.company,
-            "position": row.position,
-            "date": row.date,
-            "time_in": row.time_in ,
-            "time_out": row.time_out,
-            "status": row.status,
-        }
-        for row in results
-    ]
 
-    return response
+    attendance_dict = {emp.empID: [] for emp in employees}
+
+    for att in attendance_data:
+        if att.employee_id in attendance_dict:
+            attendance_dict[att.employee_id].append(att)
+
+    result = []
+    for employee in employees:
+        if attendance_dict[employee.empID]: # DICTIONARY o(1) look up
+            for att in attendance_dict[employee.empID]:
+                result.append({
+                    "employee_id": employee.empID,
+                    "date": att.date,
+                    "time_in": att.time_in,
+                    "time_out": att.time_out,
+                    "status": att.status,
+                })
+        else:
+            result.append({
+                "employee_id": employee.empID,
+                "date": None,
+                "time_in": None,
+                "time_out": None,
+                "status": "No info",
+            })
+
+    return result

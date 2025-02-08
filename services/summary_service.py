@@ -57,8 +57,89 @@ def insert_summary(db: Session, data):
 
     
 
+# def fetch_summary(
+#     db: Session,
+#     page: int = 1,
+#     page_size: int = 10,
+#     search_query: str = None,
+#     date_from: str = None,
+#     date_to: str = None,
+#     employee_id_filter: str = None,
+# ) -> Dict:
+#     if page_size:
+#         offset = (page - 1) * page_size
+#     else:
+#         offset = 0  
+
+#     base_query = db.query(
+#         Summary,
+#         Employee2.fullname.label("employee_name"),  
+#         Employee2.position.label("employee_position"), 
+#         Employee2.company.label("employee_department"),  #CHANGEEEEEEEEEEEEEEEEEEEEEEEEEEE
+#     ).join(Employee2, Summary.employee_id == Employee2.empID)
+
+#     if search_query:
+#         search_term = f"%{search_query}%"
+#         base_query = base_query.filter(
+#             or_(
+#                 Summary.employee_id.like(search_term),
+#                 Summary.status.like(search_term),
+#                 Employee2.fullname.like(search_term), 
+#                 Employee2.position.like(search_term),
+#                 Employee2.company.like(search_term)  
+#             )
+#         )
+
+#     if date_from:
+#         base_query = base_query.filter(Summary.date >= date_from)
+#     if date_to:
+#         base_query = base_query.filter(Summary.date <= date_to)
+
+#     if employee_id_filter:
+#         base_query = base_query.filter(Summary.employee_id == employee_id_filter)
+
+#     total_count = base_query.count()
+
+#     status_counts = (
+#         base_query
+#         .with_entities(Summary.status, func.count(Summary.status))
+#         .group_by(Summary.status)
+#         .all()
+#     )
+#     status_summary = {status: count for status, count in status_counts}
+
+#     if page_size:
+#         result = (
+#             base_query.order_by(Summary.date.desc())
+#             .offset(offset)
+#             .limit(page_size)
+#             .all()
+#         )
+#         limit = ceil(total_count / page_size)
+#     else:
+#         result = base_query.all() 
+#         limit = total_count  
+
+#     return {
+#         "total_records": total_count,
+#         "page": page if page_size else 1,  
+#         "limit": limit,
+#         "status_summary": status_summary,
+#         "results": [
+#             {
+#                 **summary.__dict__,  
+#                 "employee_name": employee_name,
+#                 "employee_position": employee_position,
+#                 "department": employee_department,
+#             }
+#             for summary, employee_name, employee_position, employee_department in result
+#         ],
+#     }
+
+#DONE
 def fetch_summary(
-    db: Session,
+    db1: Session,
+    db2:Session,
     page: int = 1,
     page_size: int = 10,
     search_query: str = None,
@@ -66,17 +147,12 @@ def fetch_summary(
     date_to: str = None,
     employee_id_filter: str = None,
 ) -> Dict:
+
     if page_size:
         offset = (page - 1) * page_size
     else:
         offset = 0  
-
-    base_query = db.query(
-        Summary,
-        Employee2.fullname.label("employee_name"),  
-        Employee2.position.label("employee_position"), 
-        Employee2.company.label("employee_department"),  #CHANGEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    ).join(Employee2, Summary.employee_id == Employee2.empID)
+    base_query = db1.query(Summary)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -84,9 +160,6 @@ def fetch_summary(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
-                Employee2.fullname.like(search_term), 
-                Employee2.position.like(search_term),
-                Employee2.company.like(search_term)  
             )
         )
 
@@ -120,6 +193,18 @@ def fetch_summary(
         result = base_query.all() 
         limit = total_count  
 
+    # Query Employee2 from db2
+    employee_data = db2.query(
+        Employee2.empID,
+        Employee2.fullname,
+        Employee2.position,
+        Employee2.company,
+        Employee2.branch,
+    ).filter(Employee2.empID.in_([summary.employee_id for summary in result])).all()
+
+   
+    employee_map = {employee.empID: employee for employee in employee_data}
+
     return {
         "total_records": total_count,
         "page": page if page_size else 1,  
@@ -127,29 +212,28 @@ def fetch_summary(
         "status_summary": status_summary,
         "results": [
             {
-                **summary.__dict__,  
-                "employee_name": employee_name,
-                "employee_position": employee_position,
-                "department": employee_department,
+                **summary.__dict__,
+                "employee_name": employee_map.get(summary.employee_id).fullname,
+                "employee_position": employee_map.get(summary.employee_id).position,
+                "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})"
             }
-            for summary, employee_name, employee_position, employee_department in result
+            for summary in result
         ],
     }
 
 
 def fetch_count(
-    db: Session,
+    db1: Session,  # Session for the attendance database (db1)
+    db2: Session,  # Session for the a_test database (db2)
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None,
 ) -> Dict:
-    base_query = db.query(
+    # Fetch data from db1 (attendance database) for the Summary table
+    base_query = db1.query(
         Summary,
-        Employee2.fullname.label("employee_name"),  
-        Employee2.position.label("employee_position"), 
-        Employee2.company.label("employee_department"),
-    ).join(Employee2, Summary.employee_id == Employee2.empID)
+    )
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -157,9 +241,6 @@ def fetch_count(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
-                Employee2.fullname.like(search_term), 
-                Employee2.position.like(search_term),
-                Employee2.company.like(search_term)  
             )
         )
 
@@ -173,31 +254,45 @@ def fetch_count(
 
     result = base_query.order_by(Summary.date.desc()).all()
 
+    # Fetch employee data from db2 (Employee2)
+    employees = db2.query(
+        Employee2.empID,
+        Employee2.fullname.label("employee_name"),
+        Employee2.position.label("employee_position"),
+        Employee2.company.label("employee_company"),
+        Employee2.branch.label("employee_branch"),
+    ).filter(Employee2.status == "active").all()
+
     employee_summary = defaultdict(lambda: {
         "employee_name": None,
         "employee_position": None,
-        "employee_department": None,
+        "employee_company": None,
+        "employee_branch": None,
         "status_counts": defaultdict(int)
     })
 
-    for summary, employee_name, employee_position, employee_department in result:
-        employee_key = summary.employee_id
-
-        employee_summary[employee_key]["employee_name"] = employee_name
-        employee_summary[employee_key]["employee_position"] = employee_position
-        employee_summary[employee_key]["employee_department"] = employee_department
-        employee_summary[employee_key]["status_counts"][summary.status] += 1
+    # Manually join the Summary results with Employee2 data
+    for summary in result:
+        employee = next((e for e in employees if e.empID == summary.employee_id), None)
+        if employee:
+            employee_key = summary.employee_id
+            employee_summary[employee_key]["employee_name"] = employee.employee_name
+            employee_summary[employee_key]["employee_position"] = employee.employee_position
+            employee_summary[employee_key]["employee_company"] = employee.employee_company
+            employee_summary[employee_key]["employee_branch"] = employee.employee_branch
+            employee_summary[employee_key]["status_counts"][summary.status] += 1
 
     final_results = [
         {
             "employee_name": data["employee_name"],
             "employee_position": data["employee_position"],
-            "employee_department": data["employee_department"],
+            "employee_company": f"{data['employee_company']} ({data['employee_branch']})",
             "status_counts": dict(data["status_counts"]),
         }
         for data in employee_summary.values()
     ]
 
+    # Fetch the status counts from db1 for the Summary table
     status_counts = (
         base_query
         .with_entities(Summary.status, func.count(Summary.status))
