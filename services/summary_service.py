@@ -137,6 +137,7 @@ def insert_summary(db: Session, data):
 #         ],
 #     }
 
+#DONE
 def fetch_summary(
     db1: Session,
     db2:Session,
@@ -199,6 +200,7 @@ def fetch_summary(
         Employee2.fullname,
         Employee2.position,
         Employee2.company,
+        Employee2.branch,
     ).filter(Employee2.empID.in_([summary.employee_id for summary in result])).all()
 
    
@@ -214,7 +216,7 @@ def fetch_summary(
                 **summary.__dict__,
                 "employee_name": employee_map.get(summary.employee_id).fullname,
                 "employee_position": employee_map.get(summary.employee_id).position,
-                "department": employee_map.get(summary.employee_id).company,
+                "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})"
             }
             for summary in result
         ],
@@ -258,13 +260,15 @@ def fetch_count(
         Employee2.empID,
         Employee2.fullname.label("employee_name"),
         Employee2.position.label("employee_position"),
-        Employee2.company.label("employee_department"),
+        Employee2.company.label("employee_company"),
+        Employee2.branch.label("employee_branch"),
     ).filter(Employee2.status == "active").all()
 
     employee_summary = defaultdict(lambda: {
         "employee_name": None,
         "employee_position": None,
-        "employee_department": None,
+        "employee_company": None,
+        "employee_branch": None,
         "status_counts": defaultdict(int)
     })
 
@@ -275,14 +279,15 @@ def fetch_count(
             employee_key = summary.employee_id
             employee_summary[employee_key]["employee_name"] = employee.employee_name
             employee_summary[employee_key]["employee_position"] = employee.employee_position
-            employee_summary[employee_key]["employee_department"] = employee.employee_department
+            employee_summary[employee_key]["employee_company"] = employee.employee_company
+            employee_summary[employee_key]["employee_branch"] = employee.employee_branch
             employee_summary[employee_key]["status_counts"][summary.status] += 1
 
     final_results = [
         {
             "employee_name": data["employee_name"],
             "employee_position": data["employee_position"],
-            "employee_department": data["employee_department"],
+            "employee_company": f"{data['employee_company']} ({data['employee_branch']})",
             "status_counts": dict(data["status_counts"]),
         }
         for data in employee_summary.values()

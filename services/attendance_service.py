@@ -210,22 +210,64 @@ def fetch_attendance_today(db: Session):
 
 
 
+# def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
+#     today = date.today().strftime('%a').upper()
+
+#     employees = db2.query(
+#         Employee2.empID,
+#         Employee2.fullname,
+#         Employee2.company,
+#         Employee2.position,
+#         Employee2.status,
+#         Employee2.work_sched
+#     ).filter(
+#         Employee2.status == "Active",
+#         func.find_in_set(today, Employee2.work_sched) > 0  
+#     ).all()
+
+   
+#     attendance_data = db1.query(
+#         Attendance.employee_id,
+#         Attendance.date,
+#         Attendance.time_in,
+#         Attendance.time_out,
+#         Attendance.status
+#     ).filter(Attendance.date.between(start_date, end_date)).all()
+
+    
+#     result = []
+#     for employee in employees:
+#         employee_attendance = [
+#             att for att in attendance_data if att.employee_id == employee.empID
+#         ]
+#         for att in employee_attendance:
+#             result.append({
+#                 "employee_id": employee.empID,
+#                 "name": employee.fullname,
+#                 "department": employee.company,
+#                 "position": employee.position,
+#                 "date": att.date,
+#                 "time_in": att.time_in,
+#                 "time_out": att.time_out,
+#                 "status": att.status if att.status else "No info",
+#             })
+
+#     return result
+
+
 def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
-    today = date.today().strftime('%a').upper()
+    #change this to range(temporary fix)
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    today = start_date.strftime('%a').upper()
 
     employees = db2.query(
         Employee2.empID,
-        Employee2.fullname,
-        Employee2.company,
-        Employee2.position,
-        Employee2.status,
         Employee2.work_sched
     ).filter(
         Employee2.status == "Active",
         func.find_in_set(today, Employee2.work_sched) > 0  
     ).all()
 
-   
     attendance_data = db1.query(
         Attendance.employee_id,
         Attendance.date,
@@ -234,22 +276,32 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
         Attendance.status
     ).filter(Attendance.date.between(start_date, end_date)).all()
 
-    
+    # Corrected initialization
+    attendance_dict = {emp.empID: [] for emp in employees}
+
+    for att in attendance_data:
+        if att.employee_id in attendance_dict:
+            attendance_dict[att.employee_id].append(att)
+
     result = []
     for employee in employees:
-        employee_attendance = [
-            att for att in attendance_data if att.employee_id == employee.empID
-        ]
-        for att in employee_attendance:
+        if attendance_dict[employee.empID]: 
+            for att in attendance_dict[employee.empID]:
+                result.append({
+                    "employee_id": employee.empID,
+                    "date": att.date,
+                    "time_in": att.time_in,
+                    "time_out": att.time_out,
+                    "status": att.status if att.status else "No info",
+                })
+        else:
+          
             result.append({
                 "employee_id": employee.empID,
-                "name": employee.fullname,
-                "department": employee.company,
-                "position": employee.position,
-                "date": att.date,
-                "time_in": att.time_in,
-                "time_out": att.time_out,
-                "status": att.status if att.status else "No info",
+                "date": None,
+                "time_in": None,
+                "time_out": None,
+                "status": "No info",
             })
 
     return result
