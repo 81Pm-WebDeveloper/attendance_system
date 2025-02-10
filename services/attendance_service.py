@@ -8,8 +8,7 @@ from sqlalchemy import or_,desc,and_
 from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil
-from db.database import SessionLocal
-from db.database2 import SessionLocal2
+
 
 
 load_dotenv()
