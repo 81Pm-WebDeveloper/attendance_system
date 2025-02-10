@@ -4,12 +4,12 @@ import services.attendance_service as attendanceService
 from db.database import get_db
 from dotenv import load_dotenv
 import os
-
+from config.authentication import verify_key
 
 router = APIRouter()
 load_dotenv()
 #LOCAL
-@router.post("/",status_code=200)
+@router.post("/",status_code=200, dependencies=[Depends(verify_key)])
 def insert_attendance(db: Session = Depends(get_db)):
     try:
         device_ip = os.getenv("device_ip")
@@ -29,7 +29,7 @@ def insert_attendance(db: Session = Depends(get_db)):
 
 
 #DEPLOY
-@router.get("/")
+@router.get("/",dependencies=[Depends(verify_key)])
 def get_attendance(
     page: int = 1,
     page_size: int = 10,
@@ -42,7 +42,7 @@ def get_attendance(
 ):
     return attendanceService.fetch_attendance(db, page, page_size, search_query,date_from,date_to,status_filter,employee_id_filter)
     
-@router.get("/today/")
+@router.get("/today/",dependencies=[Depends(verify_key)])
 def get_attendance_today(db: Session = Depends(get_db)):
     try:
         return attendanceService.fetch_attendance_today(db)

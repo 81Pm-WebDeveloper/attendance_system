@@ -6,9 +6,10 @@ from db.database import get_db
 from db.database2 import get_db2
 from schemas.summary import UpdateSummary 
 from typing import List
+from config.authentication import verify_key
 router = APIRouter()
 
-@router.post("/", status_code=200)
+@router.post("/", status_code=200, dependencies=[Depends(verify_key)])
 def insert_summary(
     db: Session = Depends(get_db),
     db2: Session = Depends(get_db2),
@@ -38,7 +39,7 @@ def insert_summary(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@router.get("/",status_code=200)  # DONEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+@router.get("/",status_code=200, dependencies=[Depends(verify_key)])  # DONEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 def get_summary(
     db1:Session = Depends(get_db),
     db2:Session = Depends(get_db2),
@@ -53,7 +54,7 @@ def get_summary(
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
-@router.get("/count")
+@router.get("/count", dependencies=[Depends(verify_key)])
 def fetch_summary_count(
     db: Session = Depends(get_db),
     db2: Session = Depends(get_db2),
@@ -76,7 +77,7 @@ def fetch_summary_count(
         raise HTTPException(status_code=500, detail=f"Error fetching summary: {str(e)}")
 
 
-@router.put("/", status_code=200)
+@router.put("/", status_code=200, dependencies=[Depends(verify_key)])
 def update_summary(updates: List[UpdateSummary], db: Session = Depends(get_db)):
     try:
         updated_summary = summaryService.update_status(db,updates)
