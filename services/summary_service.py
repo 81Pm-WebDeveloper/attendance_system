@@ -193,7 +193,6 @@ def fetch_summary(
         result = base_query.all() 
         limit = total_count  
 
-    # Query Employee2 from db2
     employee_data = db2.query(
         Employee2.empID,
         Employee2.fullname,

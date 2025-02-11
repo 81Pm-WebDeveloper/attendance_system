@@ -3,12 +3,12 @@ from db.database import engine
 from db.database2 import engine2
 from models.attendance import Attendance
 from models.leave_app import Leave
-from models.employees import Employee
+from models.vouchers import Vouchers
 from models.attendance_summary import Summary
 from models.emp_list import Employee2
 from routers import attendance_router
 from routers import summary_router
-from routers import employee_router
+#from routers import employee_router
 from routers import leave_router
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +17,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 Attendance.metadata.create_all(bind=engine)
-Employee.metadata.create_all(bind=engine)
+#Employee.metadata.create_all(bind=engine)
 Summary.metadata.create_all(bind=engine)
+Vouchers.metadata.create_all(bind=engine)
 
 
 Employee2.metadata.create_all(bind=engine2)
@@ -37,7 +38,7 @@ app.add_middleware(
 )
 
 
-app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
+#app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
 app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
 app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])
