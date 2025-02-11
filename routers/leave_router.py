@@ -15,4 +15,3 @@ def get_leave(db: Session = Depends(get_db2),date: str=None):
         return result
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
-    

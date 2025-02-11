@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Time, UniqueConstraint,Text
+from sqlalchemy import Column, Integer, String, Date, Time, UniqueConstraint,Text,Index
 from db.database import Base
 
 class Summary(Base):
@@ -10,3 +10,7 @@ class Summary(Base):
     time_out = Column(Time)
     status = Column(String(30), nullable=False)
     remarks = Column(Text)
+
+    __table_args__ = (
+        Index("idx_employee_date", "employee_id", "date"),  
+    )
