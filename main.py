@@ -8,7 +8,7 @@ from models.attendance_summary import Summary
 from models.emp_list import Employee2
 from routers import attendance_router
 from routers import summary_router
-from routers import employee_router
+#from routers import employee_router
 from routers import leave_router
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 Attendance.metadata.create_all(bind=engine)
-Employee.metadata.create_all(bind=engine)
+#Employee.metadata.create_all(bind=engine)
 Summary.metadata.create_all(bind=engine)
 
 
@@ -37,7 +37,7 @@ app.add_middleware(
 )
 
 
-app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
+#app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
 app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
 app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])

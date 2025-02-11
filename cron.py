@@ -102,6 +102,7 @@ def connect_to_device(ip, port=4370):
     except Exception as e:
         raise Exception(f"Unable to connect to device: {e}")
 
+
 if __name__ == "__main__":
     load_dotenv()
 
