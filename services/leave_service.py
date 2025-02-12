@@ -17,7 +17,7 @@ def get_leaves(db: Session,check_date: date = None):
         Leave.leave_end,
         Leave.leave_reason
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
-        Leave.leave_status == "Approved",
+        Leave.leave_status == "APPROVED",
         Leave.leave_start <= check_date,  
         Leave.leave_end >= check_date     
     ).all()  

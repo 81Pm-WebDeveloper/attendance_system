@@ -139,7 +139,7 @@ def insert_summary(db: Session, data):
 #DONE
 def fetch_summary(
     db1: Session,
-    db2:Session,
+    db2: Session,
     page: int = 1,
     page_size: int = 10,
     search_query: str = None,
@@ -152,6 +152,7 @@ def fetch_summary(
         offset = (page - 1) * page_size
     else:
         offset = 0  
+
     base_query = db1.query(Summary)
 
     if search_query:
@@ -193,16 +194,28 @@ def fetch_summary(
         result = base_query.all() 
         limit = total_count  
 
-    employee_data = db2.query(
-        Employee2.empID,
-        Employee2.fullname,
-        Employee2.position,
-        Employee2.company,
-        Employee2.branch,
-    ).filter(Employee2.empID.in_([summary.employee_id for summary in result])).all()
+
+    employee_data = (
+        db2.query(
+            Employee2.empID,
+            Employee2.fullname,
+            Employee2.position,
+            Employee2.department,
+            Employee2.company,
+            Employee2.branch,
+        )
+        .filter(Employee2.empID.in_([summary.employee_id for summary in result]))
+        .order_by(Employee2.department) 
+        .all()
+    )
+
+    employee_map = {employee.empID: employee for employee in employee_data}
 
    
-    employee_map = {employee.empID: employee for employee in employee_data}
+    sorted_result = sorted(
+        result, 
+        key=lambda summary: employee_map.get(summary.employee_id).department if employee_map.get(summary.employee_id) else ""
+    )
 
     return {
         "total_records": total_count,
@@ -212,13 +225,15 @@ def fetch_summary(
         "results": [
             {
                 **summary.__dict__,
+                "employee_department": employee_map.get(summary.employee_id).department,
                 "employee_name": employee_map.get(summary.employee_id).fullname,
                 "employee_position": employee_map.get(summary.employee_id).position,
                 "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})"
             }
-            for summary in result
+            for summary in sorted_result  
         ],
     }
+
 
 
 def fetch_count(
@@ -257,6 +272,7 @@ def fetch_count(
     employees = db2.query(
         Employee2.empID,
         Employee2.fullname.label("employee_name"),
+        Employee2.department.label("employee_department"),
         Employee2.position.label("employee_position"),
         Employee2.company.label("employee_company"),
         Employee2.branch.label("employee_branch"),
@@ -264,18 +280,20 @@ def fetch_count(
 
     employee_summary = defaultdict(lambda: {
         "employee_name": None,
+        "employee_department": None,
         "employee_position": None,
         "employee_company": None,
         "employee_branch": None,
         "status_counts": defaultdict(int)
     })
 
-    # Manually join the Summary results with Employee2 data
+    
     for summary in result:
         employee = next((e for e in employees if e.empID == summary.employee_id), None)
         if employee:
             employee_key = summary.employee_id
             employee_summary[employee_key]["employee_name"] = employee.employee_name
+            employee_summary[employee_key]["employee_department"] = employee.employee_department
             employee_summary[employee_key]["employee_position"] = employee.employee_position
             employee_summary[employee_key]["employee_company"] = employee.employee_company
             employee_summary[employee_key]["employee_branch"] = employee.employee_branch
@@ -284,6 +302,7 @@ def fetch_count(
     final_results = [
         {
             "employee_name": data["employee_name"],
+            "employee_department": data["employee_department"],
             "employee_position": data["employee_position"],
             "employee_company": f"{data['employee_company']} ({data['employee_branch']})",
             "status_counts": dict(data["status_counts"]),

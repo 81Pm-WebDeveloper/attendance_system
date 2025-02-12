@@ -258,11 +258,15 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
    
     today = date.today().strftime('%a').upper()
 
+    excluded_positions = {'System Admin', 'SystemTester','Admin', 'Manager', 'ASDAS',' ',''}
+
     employees = db2.query(
         Employee2.empID,
         Employee2.work_sched
     ).filter(
         Employee2.status == "Active",
+        Employee2.department != 'MANAGEMENT',
+        ~Employee2.position.in_(excluded_positions),  # FIX: Wrap in a set
         func.find_in_set(today, Employee2.work_sched) > 0  
     ).all()
 

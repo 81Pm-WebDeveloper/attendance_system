@@ -1,5 +1,5 @@
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func,exists
 from models.attendance_summary import Summary  
 from models.vouchers import Vouchers
 from datetime import datetime, timedelta
@@ -18,15 +18,20 @@ def get_last_week_range():
     
 
 def get_perfect_attendance(db, start_date: str, end_date: str, required_days: int = 6):
-    perfect_attendance = (
+    subq = (
         db.query(Summary.employee_id)
         .filter(Summary.date.between(start_date, end_date))
         .filter(Summary.status == "Present")
         .group_by(Summary.employee_id)
-        .having(func.count(func.distinct(Summary.date)) == required_days)
-        .all()
+        .having(func.count(Summary.date) == required_days)
+        .subquery()
     )
-    return [emp[0] for emp in perfect_attendance]
+
+    exists_condition = exists().where(Summary.employee_id == subq.c.employee_id)
+
+    result = db.query(Summary.employee_id).filter(exists_condition).distinct().all()
+    return [emp[0] for emp in result]
+
 
 
 
