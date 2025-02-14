@@ -18,13 +18,14 @@ def timeout_status(time_in, time_out, is_friday=False):
     regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
 
     if is_friday:
+        
         if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+            print('Condition 1')
         elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
-        else:
-            regular_out_time = datetime.strptime('21:00:00', '%H:%M:%S').time()
-
+            print('Condition 2') 
+             
     if time_out <= half_day_threshold:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
         undertime_min = max(0, undertime_min - 60)
@@ -72,12 +73,14 @@ def fetch_logs_for_past_days(conn, db, days=7):
 
     for log in logs:
         log_date = log.timestamp.date()
+        is_friday = log.timestamp.date().strftime("%A") == "Friday"
         if not (start_date <= log_date <= today):
             continue
 
         user_id = log.user_id
         timestamp = str(log.timestamp).split(' ')[1]
         punch = "time-in" if log.punch == 0 else "time-out"
+
 
         if user_id not in employee_logs:
             employee_logs[user_id] = {}
@@ -105,7 +108,7 @@ def fetch_logs_for_past_days(conn, db, days=7):
         elif punch == "time-out":
             time_out = datetime.strptime(timestamp, '%H:%M:%S').time()
             employee_logs[user_id][log_date]["time-out"] = timestamp
-            result = timeout_status(time_in, time_out, is_friday=False)
+            result = timeout_status(time_in, time_out, is_friday)
 
             if isinstance(result, tuple):
                 employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
