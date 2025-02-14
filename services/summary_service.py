@@ -26,7 +26,7 @@ def insert_summary(db: Session, data):
             ).first()
             
             if existing_entry:
-                if existing_entry.status == 'No info': 
+                if item.get('status') == 'On time': 
                     existing_entry.status = item.get('status', existing_entry.status)
                     db.add(existing_entry)
                 if existing_entry.time_in is None and item.get('time_in'):
@@ -144,7 +144,7 @@ def fetch_summary(
     page_size: int = 10,
     search_query: str = None,
     date_from: str = None,
-    date_to: str = None,
+    date_to: str = None,  #Change to single date
     employee_id_filter: str = None,
 ) -> Dict:
 
