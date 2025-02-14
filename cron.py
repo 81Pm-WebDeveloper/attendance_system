@@ -6,20 +6,62 @@ from dotenv import load_dotenv
 from db.database import engine
 import os
 
-# SCHEDULED TASK
+# Initialize DB session
 SessionLocal = sessionmaker(bind=engine)
-Session = SessionLocal()
+
+
+def timeout_status(time_in, time_out, is_friday=False):
+    undertime_threshold = datetime.strptime('15:00:00', '%H:%M:%S').time()
+    early_out_threshold = datetime.strptime('16:00:00', '%H:%M:%S').time()
+    half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
+    
+    regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
+
+    if is_friday:
+        if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
+            regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+        elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
+            regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
+        else:
+            regular_out_time = datetime.strptime('21:00:00', '%H:%M:%S').time()
+
+    if time_out <= half_day_threshold:
+        undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
+        undertime_min = max(0, undertime_min - 60)
+        return (undertime_min, "Half Day")
+
+    elif time_out < undertime_threshold:
+        undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
+        
+        return (undertime_min, "Undertime")
+
+    elif time_out < early_out_threshold:
+        undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
+        return (undertime_min, "Early Out")
+
+    elif time_out >= regular_out_time:
+        return "On time"
+
+    else:
+        return "On time"
+
+
 
 def time_status(time_in):
     late_threshold = datetime.strptime('09:01:00', '%H:%M:%S').time()
     half_day_threshold = datetime.strptime('11:00:00', '%H:%M:%S').time()
+    base_time = datetime.strptime('09:00:00', '%H:%M:%S').time()
 
     if time_in >= half_day_threshold:
-        return "Half Day"
+        if time_in > half_day_threshold:
+            late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, half_day_threshold)).seconds//60 
+            return (late_min,"Half Day")
     elif time_in >= late_threshold:
-        return "Late"
+        late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, base_time)).seconds//60 
+        return (late_min, "Late")
     else:
-        return "Present"
+        return "On time"
+
 
 def fetch_logs_for_past_days(conn, db, days=7):
     today = date.today()
@@ -30,26 +72,49 @@ def fetch_logs_for_past_days(conn, db, days=7):
 
     for log in logs:
         log_date = log.timestamp.date()
+        if not (start_date <= log_date <= today):
+            continue
 
-        if start_date <= log_date <= today:  # Check if within range
-            user_id = log.user_id
-            timestamp = str(log.timestamp).split(' ')[1]
-            punch = "time-in" if log.punch == 0 else "time-out"
+        user_id = log.user_id
+        timestamp = str(log.timestamp).split(' ')[1]
+        punch = "time-in" if log.punch == 0 else "time-out"
 
-            if user_id not in employee_logs:
-                employee_logs[user_id] = {}
+        if user_id not in employee_logs:
+            employee_logs[user_id] = {}
 
-            if log_date not in employee_logs[user_id]:
-                employee_logs[user_id][log_date] = {"time-in": None, "time-out": None, "status": "Present"}
+        if log_date not in employee_logs[user_id]:
+            employee_logs[user_id][log_date] = {
+                "time-in": None, 
+                "time-out": None, 
+                "status": "On time",
+                "checkout_status": None,
+                "late_min": None,
+                "undertime_min": None,
+            }
 
-            if punch == "time-in" and employee_logs[user_id][log_date]["time-in"] is None:
-                time_in = datetime.strptime(timestamp, '%H:%M:%S').time()
-                employee_logs[user_id][log_date]["time-in"] = timestamp
-                employee_logs[user_id][log_date]["status"] = time_status(time_in)
-            elif punch == "time-out":
-                employee_logs[user_id][log_date]["time-out"] = timestamp
+        if punch == "time-in" and employee_logs[user_id][log_date]["time-in"] is None:
+            time_in = datetime.strptime(timestamp, '%H:%M:%S').time()
+            employee_logs[user_id][log_date]["time-in"] = timestamp
+            result = time_status(time_in)
+
+            if isinstance(result, tuple):
+                employee_logs[user_id][log_date]["late_min"], employee_logs[user_id][log_date]["status"] = result
+            else:
+                employee_logs[user_id][log_date]["status"] = result
+
+        elif punch == "time-out":
+            time_out = datetime.strptime(timestamp, '%H:%M:%S').time()
+            employee_logs[user_id][log_date]["time-out"] = timestamp
+            result = timeout_status(time_in, time_out, is_friday=False)
+
+            if isinstance(result, tuple):
+                employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
+            else:
+                employee_logs[user_id][log_date]["checkout_status"] = result
+
     conn.enable_device()
     conn.disconnect()
+
     if employee_logs:
         logs_inserted = batch_insert_update_logs(db, employee_logs)
         return logs_inserted
@@ -63,35 +128,42 @@ def batch_insert_update_logs(db, employee_logs):
 
     for emp_id, dates in employee_logs.items():
         for log_date, times in dates.items():
-            existing_record = db.query(Attendance).filter(Attendance.employee_id == emp_id,
-                                                          Attendance.date == log_date).first()
+            existing_record = db.query(Attendance).filter(
+                Attendance.employee_id == emp_id, Attendance.date == log_date
+            ).first()
 
             if existing_record:
                 if times["time-out"]:
-                    updates.append({"time_out": times["time-out"], "employee_id": emp_id, "date": log_date})
+                    existing_record.time_out = times["time-out"]
+                    existing_record.checkout_status = times["checkout_status"]
+                    existing_record.undertime_min = times["undertime_min"]
+                    updates.append(existing_record)
             else:
                 if times["time-in"]:
-                    inserts.append({
-                        "employee_id": emp_id,
-                        "date": log_date,
-                        "time_in": times["time-in"],
-                        "time_out": times["time-out"],
-                        "status": times["status"]
-                    })
+                    inserts.append(Attendance(
+                        employee_id=emp_id,
+                        date=log_date,
+                        time_in=times["time-in"],
+                        time_out=times["time-out"],
+                        status=times["status"],
+                        checkout_status=times["checkout_status"],
+                        late_min=times["late_min"],
+                        undertime_min=times["undertime_min"]
+                    ))
                 else:
                     print(f"Skipping insert for employee_id {emp_id} on {log_date} because time_in is missing.")
 
-    if inserts:
-        db.bulk_insert_mappings(Attendance, inserts)
-    if updates:
-        for update in updates:
-            existing_record = db.query(Attendance).filter(Attendance.employee_id == update["employee_id"],
-                                                          Attendance.date == update["date"]).first()
-            existing_record.time_out = update["time_out"]
-            db.add(existing_record)
+    try:
+        if inserts:
+            db.bulk_save_objects(inserts)
+        if updates:
+            db.add_all(updates)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Database error: {e}")
 
-    db.commit()
-    return inserts, updates
+    return len(inserts), len(updates)
 
 def connect_to_device(ip, port=4370):
     zk = ZK(ip, port=port, timeout=5)
@@ -102,18 +174,17 @@ def connect_to_device(ip, port=4370):
     except Exception as e:
         raise Exception(f"Unable to connect to device: {e}")
 
-
 if __name__ == "__main__":
     load_dotenv()
 
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
 
+    session = SessionLocal()
     try:
         conn = connect_to_device(device_ip, port)
-        fetch_logs_for_past_days(conn, Session, days=7)
+        fetch_logs_for_past_days(conn, session, days=7)
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        Session.close()
-        
+        session.close()
