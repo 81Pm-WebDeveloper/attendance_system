@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Time,Index
+from sqlalchemy import Column, Integer, String, Date, Time,Index,UniqueConstraint
 from db.database import Base
 
 class Attendance(Base):
@@ -11,10 +11,11 @@ class Attendance(Base):
     time_out = Column(Time, nullable=True)
     status = Column(String(30), nullable=True)
     checkout_status = Column(String(30), nullable=True)
-    late_min = Column(Integer)
-    undertime_min = Column(Integer)
+    late_min = Column(Integer,nullable=True)
+    undertime_min = Column(Integer,nullable=True)
 
     __table_args__ = (
         Index("idx_employee_date", "employee_id", "date"),  
-        Index("idx_date", "date"),  
+        Index("idx_date", "date"),
+        UniqueConstraint('employee_id','date',name='uq_employee_date')    
     )

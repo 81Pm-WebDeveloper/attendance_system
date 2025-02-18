@@ -1,5 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func,exists
+from models.attendance import Attendance  
 from models.attendance_summary import Summary  
 from models.vouchers import Vouchers
 from datetime import datetime, timedelta
@@ -17,20 +18,31 @@ def get_last_week_range():
     return last_week_monday.date(), last_week_saturday.date()
     
 
+
+
 def get_perfect_attendance(db, start_date: str, end_date: str, required_days: int = 6):
+    
     subq = (
-        db.query(Summary.employee_id)
-        .filter(Summary.date.between(start_date, end_date))
-        .filter(Summary.status == "Present")
-        .group_by(Summary.employee_id)
-        .having(func.count(Summary.date) == required_days)
-        .subquery()
+        db.query(Attendance.employee_id)
+        .join(Summary, (Summary.employee_id == Attendance.employee_id) & (Summary.date == Attendance.date))  
+        .filter(Summary.date.between(start_date, end_date)) 
+        .filter(Summary.status == "On time")  
+        .filter(Attendance.checkout_status == "On time")  
+        .group_by(Attendance.employee_id)  
+        .having(func.count(
+            func.case([
+                (Summary.status == 'On time', 1)
+            ], else_=None)
+        ) == required_days) 
     )
 
-    exists_condition = exists().where(Summary.employee_id == subq.c.employee_id)
+    exists_condition = exists().where(Attendance.employee_id == subq.c.employee_id)
 
-    result = db.query(Summary.employee_id).filter(exists_condition).distinct().all()
-    return [emp[0] for emp in result]
+
+    result = db.query(Attendance.employee_id).filter(exists_condition).distinct().all()
+
+    return [emp[0] for emp in result]  
+
 
 
 
