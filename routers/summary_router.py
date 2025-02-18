@@ -22,10 +22,12 @@ def insert_summary(
         data = [
             {
                 "employee_id": row["employee_id"],
+                "att_id": row["att_id"],
                 "date": row["date"],
                 "time_in":row["time_in"],
                 "time_out":row["time_out"],
                 "status": row["status"],
+                "checkout_status": row["checkout_status"],
             }
             for row in response #loop 2
         ]

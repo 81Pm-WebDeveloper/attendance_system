@@ -18,12 +18,17 @@ def insert_summary(db: Session, data):
         
         for item in data:
             item['date'] = item.get('date') or date.today()
-            emp_date = (item['employee_id'], item['date'])  
+            emp_date = (item['employee_id'], item['date'])
+
             
-            existing_entry = db.query(Summary).filter(
+             
+            if(item.get('att_id')):
+                existing_entry = db.query(Summary).filter(Summary.att_id == item['att_id']).first()
+            else:
+                existing_entry = db.query(Summary).filter(
                 Summary.employee_id == item['employee_id'], 
                 Summary.date == item['date']
-            ).first()
+                ).first()
             
             if existing_entry:
                 if item.get('status') == 'On time': 
@@ -36,9 +41,13 @@ def insert_summary(db: Session, data):
                     if existing_entry.time_out is None or item['time_out'] > existing_entry.time_out:
                         existing_entry.time_out = item['time_out']
                         db.add(existing_entry)
-            
+                if item.get('checkout_status') == 'On time':
+                    existing_entry.checkout_status = item.get('checkout_status',existing_entry.checkout_status)
+                    db.add(existing_entry)
             else:
-                if emp_date not in unique_employee_dates:  
+                if emp_date not in unique_employee_dates:
+                    if item.get('status') != 'On time':
+                        item['status'] = 'No info'  
                     unique_entries.append(item)
                     unique_employee_dates.add(emp_date)
                 else:                        
@@ -170,7 +179,8 @@ def fetch_summary(
         base_query = base_query.filter(Summary.date <= date_to)
 
     if employee_id_filter:
-        base_query = base_query.filter(Summary.employee_id == employee_id_filter)
+        base_query = base_query.filter(Summary.employee_id == employee_id_filter).order_by(Summary.date.desc())
+        
 
     total_count = base_query.count()
 
@@ -210,7 +220,7 @@ def fetch_summary(
     )
 
     employee_map = {employee.empID: employee for employee in employee_data}
-
+                    #KEY            #VALUE
    
     sorted_result = sorted(
         result, 
@@ -224,7 +234,7 @@ def fetch_summary(
         "status_summary": status_summary,
         "results": [
             {
-                **summary.__dict__,
+                **summary.__dict__, #EXTRACTS THE VALUE OF sorted_result -------------------------------------
                 "employee_department": employee_map.get(summary.employee_id).department,
                 "employee_name": employee_map.get(summary.employee_id).fullname,
                 "employee_position": employee_map.get(summary.employee_id).position,
@@ -237,14 +247,14 @@ def fetch_summary(
 
 
 def fetch_count(
-    db1: Session,  # Session for the attendance database (db1)
-    db2: Session,  # Session for the a_test database (db2)
+    db1: Session, 
+    db2: Session,  
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None,
 ) -> Dict:
-    # Fetch data from db1 (attendance database) for the Summary table
+    
     base_query = db1.query(
         Summary,
     )

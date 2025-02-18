@@ -5,18 +5,21 @@ from zk import ZK
 from dotenv import load_dotenv
 from db.database import engine
 import os
-
+from sqlalchemy import tuple_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.mysql import insert
 # Initialize DB session
+import time
+
 SessionLocal = sessionmaker(bind=engine)
 
 
 def timeout_status(time_in, time_out, is_friday=False):
-    undertime_threshold = datetime.strptime('15:00:00', '%H:%M:%S').time()
-    early_out_threshold = datetime.strptime('16:00:00', '%H:%M:%S').time()
+    
     half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
     
     regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
-
+    #print(f"{is_friday},{time_in},{time_out}")
     if is_friday:
         
         if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
@@ -28,45 +31,45 @@ def timeout_status(time_in, time_out, is_friday=False):
              
     if time_out <= half_day_threshold:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
-        undertime_min = max(0, undertime_min - 60)
+        undertime_min = max(0, undertime_min)
         return (undertime_min, "Half Day")
 
-    elif time_out < undertime_threshold:
+    elif time_out < regular_out_time:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
-        
+        undertime_min = max(0, undertime_min)
         return (undertime_min, "Undertime")
 
-    elif time_out < early_out_threshold:
-        undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
-        return (undertime_min, "Early Out")
-
     elif time_out >= regular_out_time:
-        return "On time"
+        return (None, "On time")
 
     else:
-        return "On time"
+        return (None, "WTF")
 
 
 
 def time_status(time_in):
-    late_threshold = datetime.strptime('09:01:00', '%H:%M:%S').time()
-    half_day_threshold = datetime.strptime('11:00:00', '%H:%M:%S').time()
-    base_time = datetime.strptime('09:00:00', '%H:%M:%S').time()
+    late_threshold = datetime.strptime('09:01:00', '%H:%M:%S').time()  
+    half_day_threshold = datetime.strptime('11:00:00', '%H:%M:%S').time()  
+    half_day_base_time = datetime.strptime('13:00:00', '%H:%M:%S').time() 
+    base_time = datetime.strptime('09:00:00', '%H:%M:%S').time()  
 
-    if time_in >= half_day_threshold:
-        if time_in > half_day_threshold:
-            late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, half_day_threshold)).seconds//60 
-            return (late_min,"Half Day")
-    elif time_in >= late_threshold:
-        late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, base_time)).seconds//60 
+    if time_in >= half_day_threshold:  
+        late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, half_day_base_time)).seconds // 60
+        return (late_min, "Half Day") if time_in > half_day_base_time else (None, "Half Day")
+
+    elif time_in >= late_threshold: 
+        late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, base_time)).seconds // 60
         return (late_min, "Late")
+
     else:
         return "On time"
 
 
-def fetch_logs_for_past_days(conn, db, days=7):
+
+def fetch_logs_for_past_days(conn, db, days):
     today = date.today()
     start_date = today - timedelta(days=days)
+    print(start_date)
 
     logs = conn.get_attendance()
     employee_logs = {}
@@ -89,8 +92,8 @@ def fetch_logs_for_past_days(conn, db, days=7):
             employee_logs[user_id][log_date] = {
                 "time-in": None, 
                 "time-out": None, 
-                "status": "On time",
-                "checkout_status": None,
+                "status": None,
+                "checkout_status": "No info",
                 "late_min": None,
                 "undertime_min": None,
             }
@@ -119,22 +122,35 @@ def fetch_logs_for_past_days(conn, db, days=7):
     conn.disconnect()
 
     if employee_logs:
+        #print(employee_logs)
         logs_inserted = batch_insert_update_logs(db, employee_logs)
         return logs_inserted
     else:
         print(f"No attendance records for the past {days} days. Skipping database update.")
         return None
 
+
+
+
+
 def batch_insert_update_logs(db, employee_logs):
+    emp_date_pairs = [(emp_id, date) for emp_id, dates in employee_logs.items() 
+                      for date in dates.keys()]
+    
+    existing_records = {
+        (record.employee_id, record.date): record
+        for record in db.query(Attendance).filter(
+            tuple_(Attendance.employee_id, Attendance.date).in_(emp_date_pairs)
+        )
+    }
+    
     inserts = []
     updates = []
-
+    
     for emp_id, dates in employee_logs.items():
         for log_date, times in dates.items():
-            existing_record = db.query(Attendance).filter(
-                Attendance.employee_id == emp_id, Attendance.date == log_date
-            ).first()
-
+            existing_record = existing_records.get((emp_id, log_date))
+            
             if existing_record:
                 if times["time-out"]:
                     existing_record.time_out = times["time-out"]
@@ -143,30 +159,54 @@ def batch_insert_update_logs(db, employee_logs):
                     updates.append(existing_record)
             else:
                 if times["time-in"]:
-                    inserts.append(Attendance(
-                        employee_id=emp_id,
-                        date=log_date,
-                        time_in=times["time-in"],
-                        time_out=times["time-out"],
-                        status=times["status"],
-                        checkout_status=times["checkout_status"],
-                        late_min=times["late_min"],
-                        undertime_min=times["undertime_min"]
-                    ))
+                    inserts.append({
+                        'employee_id': emp_id,
+                        'date': log_date,
+                        'time_in': times["time-in"],
+                        'time_out': times["time-out"],
+                        'status': times["status"],
+                        'checkout_status': times["checkout_status"],
+                        'late_min': times.get("late_min", 0),
+                        'undertime_min': times.get("undertime_min", 0)
+                    })
                 else:
                     print(f"Skipping insert for employee_id {emp_id} on {log_date} because time_in is missing.")
-
+    
     try:
         if inserts:
-            db.bulk_save_objects(inserts)
+            for batch in chunks(inserts, 1000): 
+                stmt = insert(Attendance).values(batch)
+                update_dict = {
+                    'time_out': stmt.inserted.time_out,
+                    'checkout_status': stmt.inserted.checkout_status,
+                    'undertime_min': stmt.inserted.undertime_min
+                }
+                stmt = stmt.on_duplicate_key_update(**update_dict)
+                db.execute(stmt)
+        
         if updates:
-            db.add_all(updates)
+            db.bulk_update_mappings(Attendance, [
+                {
+                    'id': record.id,
+                    'time_out': record.time_out,
+                    'checkout_status': record.checkout_status,
+                    'undertime_min': record.undertime_min
+                }
+                for record in updates
+            ])
+            
         db.commit()
     except Exception as e:
         db.rollback()
         print(f"Database error: {e}")
-
+        raise
+    
     return len(inserts), len(updates)
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def connect_to_device(ip, port=4370):
     zk = ZK(ip, port=port, timeout=5)
@@ -184,6 +224,7 @@ if __name__ == "__main__":
     port = int(os.getenv("device_port", 4370))
 
     session = SessionLocal()
+    start_time = time.time()
     try:
         conn = connect_to_device(device_ip, port)
         fetch_logs_for_past_days(conn, session, days=7)
@@ -191,3 +232,7 @@ if __name__ == "__main__":
         print(f"Error: {e}")
     finally:
         session.close()
+    end_time = time.time()
+
+    total_time = end_time - start_time
+    print(f"Total execution time: {total_time} seconds")
