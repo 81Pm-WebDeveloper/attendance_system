@@ -19,18 +19,17 @@ def insert_summary(db: Session, data):
         for item in data:
             item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
-
-            
              
-            if(item.get('att_id')):
-                existing_entry = db.query(Summary).filter(Summary.att_id == item['att_id']).first()
-            else:
-                existing_entry = db.query(Summary).filter(
-                Summary.employee_id == item['employee_id'], 
-                Summary.date == item['date']
-                ).first()
+            #OPTIMIZE 
+
+            existing_entry = db.query(Summary).filter(
+            Summary.employee_id == item['employee_id'], 
+            Summary.date == item['date']
+            ).first()
             
             if existing_entry:
+                existing_entry.att_id = item.get('att_id',existing_entry.att_id)
+                db.add(existing_entry)
                 if item.get('status') == 'On time': 
                     existing_entry.status = item.get('status', existing_entry.status)
                     db.add(existing_entry)
@@ -41,7 +40,7 @@ def insert_summary(db: Session, data):
                     if existing_entry.time_out is None or item['time_out'] > existing_entry.time_out:
                         existing_entry.time_out = item['time_out']
                         db.add(existing_entry)
-                if item.get('checkout_status') == 'On time':
+                if item.get('checkout_status'):
                     existing_entry.checkout_status = item.get('checkout_status',existing_entry.checkout_status)
                     db.add(existing_entry)
             else:
