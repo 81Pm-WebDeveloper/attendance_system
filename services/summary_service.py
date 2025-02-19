@@ -20,21 +20,21 @@ def insert_summary(db: Session, data):
             item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
 
-            # First, check if att_id exists in Summary
+            #check if att_id exists in Summary
             att_id_exists = db.query(Summary).filter(Summary.att_id == item['att_id']).first()
 
             if att_id_exists:
                 # If att_id is found in Summary, use it for lookup
                 existing_entry = att_id_exists
             else:
-                # If att_id is NOT found, fallback to employee_id + date lookup
+                #fallback to employee_id + date lookup
                 existing_entry = db.query(Summary).filter(
                     Summary.employee_id == item['employee_id'], 
                     Summary.date == item['date']
                 ).first()
 
             if existing_entry:
-                existing_entry.att_id = item['att_id']  # Always update att_id if not already set
+                existing_entry.att_id = item['att_id']  
                 
                 if item.get('status') == 'On time':
                     existing_entry.status = 'On time'
@@ -62,7 +62,6 @@ def insert_summary(db: Session, data):
                     print(f"Duplicate employee_id found for Date {item['date']} and employee_id {item['employee_id']}")
 
         if unique_entries:
-            # Check for existing records before bulk insert
             existing_keys = {
                 (entry.employee_id, entry.date) for entry in db.query(Summary).filter(
                     Summary.date.in_([e['date'] for e in unique_entries]),

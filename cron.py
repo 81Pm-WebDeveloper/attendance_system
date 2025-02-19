@@ -4,31 +4,40 @@ from sqlalchemy.orm import sessionmaker
 from zk import ZK
 from dotenv import load_dotenv
 from db.database import engine
+from fastapi import HTTPException
+from db.database import get_db
+from db.database2 import get_db2
+from sqlalchemy.orm import Session
 import os
+import services.summary_service as summaryService
+import services.attendance_service as attendanceService
 from sqlalchemy import tuple_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert
 # Initialize DB session
 import time
+#-----------------------------------------------------------
 
-SessionLocal = sessionmaker(bind=engine)
-
-
-def timeout_status(time_in, time_out, is_friday=False):
+def timeout_status(time_in, time_out, is_friday=False,is_saturday= False):
     
     half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
     
     regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
     #print(f"{is_friday},{time_in},{time_out}")
     if is_friday:
-        
         if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
             print('Condition 1')
         elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
             print('Condition 2') 
-             
+    if is_saturday:
+        # if voucher !== null regular_out_time = (15:00:00)
+        #IF VOUCHER '15:00:00'
+        regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+        print('Saturday')
+
+      
     if time_out <= half_day_threshold:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
         undertime_min = max(0, undertime_min -60)
@@ -44,8 +53,7 @@ def timeout_status(time_in, time_out, is_friday=False):
 
     else:
         return (None, "WTF")
-
-
+#-----------------------------------------------------------
 
 def time_status(time_in):
     late_threshold = datetime.strptime('09:01:00', '%H:%M:%S').time()  
@@ -63,10 +71,10 @@ def time_status(time_in):
 
     else:
         return "On time"
-
-
+#-----------------------------------------------------------
 
 def fetch_logs_for_past_days(conn, db, days):
+
     today = date.today()
     start_date = today - timedelta(days=days)
     print(start_date)
@@ -77,6 +85,7 @@ def fetch_logs_for_past_days(conn, db, days):
     for log in logs:
         log_date = log.timestamp.date()
         is_friday = log.timestamp.date().strftime("%A") == "Friday"
+        is_saturday = log.timestamp.date().strftime("%A") == "Saturday"
         if not (start_date <= log_date <= today):
             continue
 
@@ -111,7 +120,7 @@ def fetch_logs_for_past_days(conn, db, days):
         elif punch == "time-out":
             time_out = datetime.strptime(timestamp, '%H:%M:%S').time()
             employee_logs[user_id][log_date]["time-out"] = timestamp
-            result = timeout_status(time_in, time_out, is_friday)
+            result = timeout_status(time_in, time_out, is_friday,is_saturday)
 
             if isinstance(result, tuple):
                 employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
@@ -128,10 +137,7 @@ def fetch_logs_for_past_days(conn, db, days):
     else:
         print(f"No attendance records for the past {days} days. Skipping database update.")
         return None
-
-
-
-
+#-----------------------------------------------------------
 
 def batch_insert_update_logs(db, employee_logs):
     emp_date_pairs = [(emp_id, date) for emp_id, dates in employee_logs.items() 
@@ -202,11 +208,13 @@ def batch_insert_update_logs(db, employee_logs):
         raise
     
     return len(inserts), len(updates)
+#-----------------------------------------------------------
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
+#-----------------------------------------------------------
 
 def connect_to_device(ip, port=4370):
     zk = ZK(ip, port=port, timeout=5)
@@ -216,23 +224,61 @@ def connect_to_device(ip, port=4370):
         return conn
     except Exception as e:
         raise Exception(f"Unable to connect to device: {e}")
+#-----------------------------------------------------------
+
+def insert_summary(
+    db: Session ,
+    db2: Session,
+    start_date = str,
+    end_date = str 
+    ):
+    try:
+        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date) #first loop
+
+        data = [
+            {
+                "employee_id": row["employee_id"],
+                "att_id": row["att_id"],
+                "date": row["date"],
+                "time_in":row["time_in"],
+                "time_out":row["time_out"],
+                "status": row["status"],
+                "checkout_status": row["checkout_status"],
+            }
+            for row in response #loop 2
+        ]
+        
+        entries = summaryService.insert_summary(db, data) # loop 3
+
+        return {"detail": f"Summary logs inserted"}
+    except HTTPException as e:
+        raise e  
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 if __name__ == "__main__":
     load_dotenv()
-
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
-
-    session = SessionLocal()
     start_time = time.time()
+    days = 7
+    today = date.today()
+    start_date = today - timedelta(days=days)
+    db = next(get_db())
+    db2 = next(get_db2())
     try:
         conn = connect_to_device(device_ip, port)
-        fetch_logs_for_past_days(conn, session, days=7)
+        fetch_logs_for_past_days(conn, db, days)
+        insert_summary(db,db2,start_date = start_date, end_date=today)
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        session.close()
+        db.close()
+        db2.close()
     end_time = time.time()
 
     total_time = end_time - start_time
     print(f"Total execution time: {total_time} seconds")
+
+
+
