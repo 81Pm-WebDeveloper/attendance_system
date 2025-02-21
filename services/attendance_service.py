@@ -253,7 +253,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
    
     today = date.today().strftime('%a').upper()
 
-    excluded_positions = {'System Admin', 'SystemTester','Admin', 'Manager',' ',''}
+    excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager'}
 
     employees = db2.query(
         Employee2.empID,
@@ -307,3 +307,53 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
             })
 
     return result
+
+
+def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
+    today = date.today().strftime('%a').upper()
+
+    excluded_positions = {'System Admin', 'SystemTester', 'Admin', 'CEO', 'Manager'}
+
+    employees = db2.query(
+        Employee2.empID,
+        Employee2.work_sched
+    ).filter(
+        Employee2.status == "Active",
+        Employee2.department != 'MANAGEMENT',
+        ~Employee2.position.in_(excluded_positions),  
+        func.find_in_set(today, Employee2.work_sched) > 0  
+    ).all()
+
+    # Get only existing attendance records
+    attendance_data = db1.query(
+        Attendance.id,
+        Attendance.employee_id,        
+        Attendance.date,
+        Attendance.time_in,
+        Attendance.time_out,
+        Attendance.status,
+        Attendance.checkout_status
+    ).filter(Attendance.date.between(start_date, end_date)).all()
+
+    attendance_dict = {}
+    for att in attendance_data:
+        if att.employee_id not in attendance_dict:
+            attendance_dict[att.employee_id] = []
+        attendance_dict[att.employee_id].append(att)
+
+    result = []
+    for employee in employees:
+        if employee.empID in attendance_dict:  # Employee has existing attendance
+            for att in attendance_dict[employee.empID]:
+                result.append({
+                    "employee_id": employee.empID,
+                    "att_id": att.id,
+                    "date": att.date,
+                    "time_in": att.time_in,
+                    "time_out": att.time_out,
+                    "status": att.status,
+                    "checkout_status": att.checkout_status,
+                })
+
+    return result
+
