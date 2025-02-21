@@ -34,8 +34,7 @@ def insert_summary(
         
         entries = summaryService.insert_summary(db, data) # loop 3
 
-        return {"detail": f"Summary logs inserted",
-                "data": entries}
+        return {"detail": f"Summary logs inserted"}
     except HTTPException as e:
         raise e  
     except Exception as e:
