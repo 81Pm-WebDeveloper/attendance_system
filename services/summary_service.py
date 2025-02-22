@@ -23,15 +23,11 @@ def insert_summary(db: Session, data):
             
             att_id_exists = db.query(Summary).filter(Summary.att_id == item['att_id']).first()
 
-            if att_id_exists:
-               
-                existing_entry = att_id_exists
-            else:
                 
-                existing_entry = db.query(Summary).filter(
-                    Summary.employee_id == item['employee_id'], 
-                    Summary.date == item['date']
-                ).first()
+            existing_entry = db.query(Summary).filter(
+                Summary.employee_id == item['employee_id'], 
+                Summary.date == item['date']
+            ).first()
 
             if existing_entry:
                 existing_entry.att_id = item['att_id']  
