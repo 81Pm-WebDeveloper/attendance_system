@@ -20,14 +20,14 @@ def insert_summary(db: Session, data):
             item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
 
-            #check if att_id exists in Summary
+            
             att_id_exists = db.query(Summary).filter(Summary.att_id == item['att_id']).first()
 
             if att_id_exists:
-                # If att_id is found in Summary, use it for lookup
+               
                 existing_entry = att_id_exists
             else:
-                #fallback to employee_id + date lookup
+                
                 existing_entry = db.query(Summary).filter(
                     Summary.employee_id == item['employee_id'], 
                     Summary.date == item['date']

@@ -255,6 +255,36 @@ def insert_summary(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
+
+def insert_summary_today(
+    db: Session ,
+    db2: Session,
+    start_date = str,
+    end_date = str 
+    ):
+    try:
+        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
+        data = [
+            {
+                "employee_id": row["employee_id"],
+                "att_id": row["att_id"],
+                "date": row["date"],
+                "time_in":row["time_in"],
+                "time_out":row["time_out"],
+                "status": row["status"],
+                "checkout_status": row["checkout_status"],
+            }
+            for row in response 
+        ]
+        
+        entries = summaryService.insert_summary(db, data)
+
+        return {"detail": f"Summary logs inserted"}
+    except HTTPException as e:
+        raise e  
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
 if __name__ == "__main__":
     load_dotenv()
     device_ip = os.getenv("device_ip")
@@ -269,6 +299,7 @@ if __name__ == "__main__":
         conn = connect_to_device(device_ip, port)
         fetch_logs_for_past_days(conn, db, days)
         insert_summary(db,db2,start_date = start_date, end_date=today)
+        insert_summary_today(db,db2,start_date=today,end_date=today)
         
     except Exception as e:
         print(f"Error: {e}")
