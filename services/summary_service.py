@@ -20,7 +20,7 @@ def insert_summary(db: Session, data):
             item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
 
-            
+           
                 
             existing_entry = db.query(Summary).filter(
                 Summary.employee_id == item['employee_id'], 
