@@ -20,15 +20,13 @@ def insert_summary(db: Session, data):
             item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
 
-           
-                
             existing_entry = db.query(Summary).filter(
                 Summary.employee_id == item['employee_id'], 
                 Summary.date == item['date']
             ).first()
 
             if existing_entry:
-                existing_entry.att_id = item['att_id']  
+                existing_entry.att_id = item['att_id']  #Assign att_id for faster lookups (Report, Voucher issuance etc.)
                 
                 if item.get('status') == 'On time':
                     existing_entry.status = 'On time'

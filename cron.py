@@ -299,7 +299,7 @@ if __name__ == "__main__":
         conn = connect_to_device(device_ip, port)
         fetch_logs_for_past_days(conn, db, days)
         insert_summary(db,db2,start_date = start_date, end_date=today)
-        insert_summary_today(db,db2,start_date=today,end_date=today)
+        #insert_summary_today(db,db2,start_date=today,end_date=today)
         
     except Exception as e:
         print(f"Error: {e}")
