@@ -253,7 +253,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
    
     today = date.today().strftime('%a').upper()
 
-    excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager'}
+    excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager','HRdev'}
 
     employees = db2.query(
         Employee2.empID,
