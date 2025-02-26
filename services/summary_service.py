@@ -303,8 +303,22 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
         db.query(
             extract('year', Summary.date).label("year"),
             extract('month', Summary.date).label("month"),
-            func.coalesce(func.sum(Attendance.late_min), 0).label("total_late"),
-            func.coalesce(func.sum(Attendance.undertime_min), 0).label("total_undertime"),
+            func.coalesce(
+            func.sum(
+                    case(
+                        (Summary.status != 'On time', Attendance.late_min),
+                        else_=0
+                    )
+                ), 0
+            ).label("total_late"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Summary.status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
+                        else_=0
+                    )
+                ), 0
+            ).label("total_undertime"),
             func.coalesce(func.sum(case((Summary.status == 'Late', 1), else_=0)), 0).label("late_count"),
             func.coalesce(func.sum(case((Summary.status == 'No info', 1), else_=0)), 0).label("no_info_count"),
             func.coalesce(func.sum(case((Summary.status == 'Half day', 1), else_=0)), 0).label("halfday_count"),
