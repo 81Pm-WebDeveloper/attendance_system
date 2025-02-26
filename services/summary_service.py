@@ -314,7 +314,7 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             func.coalesce(
                 func.sum(
                     case(
-                        (Summary.status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
+                        (Summary.checkout_status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
                         else_=0
                     )
                 ), 0
