@@ -302,7 +302,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
                 "date": None,
                 "time_in": None,
                 "time_out": None,
-                "status": "No info",
+                "status": None,
                 "checkout_status": None,
             })
 

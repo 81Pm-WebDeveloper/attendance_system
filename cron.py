@@ -52,7 +52,7 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False):
         return (None, "On time")
 
     else:
-        return (None, "WTF")
+        return (None, "WTF EDGE CASE")
 #-----------------------------------------------------------
 
 def time_status(time_in):
@@ -102,7 +102,7 @@ def fetch_logs_for_past_days(conn, db, days):
                 "time-in": None, 
                 "time-out": None, 
                 "status": None,
-                "checkout_status": "No info",
+                "checkout_status": 'No info',
                 "late_min": None,
                 "undertime_min": None,
             }

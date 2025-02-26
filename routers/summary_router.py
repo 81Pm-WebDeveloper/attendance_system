@@ -85,3 +85,16 @@ def update_summary(updates: List[UpdateSummary], db: Session = Depends(get_db)):
         return {"message": "Summary updated successfully", "summary": updated_summary}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/report/", status_code=200, dependencies=[Depends(verify_key)])
+def attendance_report(
+    db: Session = Depends(get_db),
+    start_date: str = None,
+    end_date: str = None,
+    employee_id: str = None
+):
+    try:
+        response = summaryService.attendanceReport(db, start_date, end_date, employee_id)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

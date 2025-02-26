@@ -2,14 +2,15 @@ from fastapi import HTTPException
 #from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from models.attendance_summary import Summary
+from models.attendance import Attendance
 from datetime import datetime, date
-from sqlalchemy import asc, or_,desc,func
+from sqlalchemy import asc, or_,desc,func,case,extract
 from schemas.summary import UpdateSummary
 from typing import Dict, List
 from math import ceil
 from models.emp_list import Employee2
 from collections import defaultdict
-
+import calendar
 
 def insert_summary(db: Session, data):
     try:
@@ -28,7 +29,7 @@ def insert_summary(db: Session, data):
             if existing_entry:
                 existing_entry.att_id = item['att_id']  #Assign att_id for faster lookups (Report, Voucher issuance etc.)
                 
-                if item.get('status') == 'On time':
+                if item.get('status') == 'On time' and existing_entry.status != 'On leave':
                     existing_entry.status = 'On time'
 
                 if existing_entry.time_in is None and item.get('time_in'):
@@ -38,9 +39,9 @@ def insert_summary(db: Session, data):
                     if not existing_entry.time_out or item['time_out'] > existing_entry.time_out:
                         existing_entry.time_out = item['time_out']
 
-                if item.get('checkout_status'):
+                if item.get('checkout_status') != 'No info':
                     existing_entry.checkout_status = item['checkout_status']
-
+                    
                 db.add(existing_entry)
 
             else:
@@ -219,6 +220,7 @@ def fetch_count(
     ).filter(Employee2.status == "active").all()
 
     employee_summary = defaultdict(lambda: {
+        "employee_id":None,
         "employee_name": None,
         "employee_department": None,
         "employee_position": None,
@@ -232,6 +234,7 @@ def fetch_count(
         employee = next((e for e in employees if e.empID == summary.employee_id), None)
         if employee:
             employee_key = summary.employee_id
+            employee_summary[employee_key]["employee_id"] = employee.empID
             employee_summary[employee_key]["employee_name"] = employee.employee_name
             employee_summary[employee_key]["employee_department"] = employee.employee_department
             employee_summary[employee_key]["employee_position"] = employee.employee_position
@@ -241,6 +244,7 @@ def fetch_count(
 
     final_results = [
         {
+            "employee_id": data["employee_id"],
             "employee_name": data["employee_name"],
             "employee_department": data["employee_department"],
             "employee_position": data["employee_position"],
@@ -279,6 +283,7 @@ def update_status(db: Session, updates: List[UpdateSummary]):
 
         summary.status = data.status
         summary.remarks = data.remarks
+        summary.checkout_status = data.checkout_status
         updated_summaries.append(summary)
 
     if not updated_summaries:
@@ -291,3 +296,57 @@ def update_status(db: Session, updates: List[UpdateSummary]):
         db.refresh(summary)
 
     return {"updated": [summary.id for summary in updated_summaries], "failed": failed_updates}
+
+
+def attendanceReport(db: Session, start_date: datetime, end_date: datetime, employee_id: int):
+    records = (
+        db.query(
+            extract('year', Summary.date).label("year"),
+            extract('month', Summary.date).label("month"),
+            func.coalesce(func.sum(Attendance.late_min), 0).label("total_late"),
+            func.coalesce(func.sum(Attendance.undertime_min), 0).label("total_undertime"),
+            func.coalesce(func.sum(case((Summary.status == 'Late', 1), else_=0)), 0).label("late_count"),
+            func.coalesce(func.sum(case((Summary.status == 'No info', 1), else_=0)), 0).label("no_info_count"),
+            func.coalesce(func.sum(case((Summary.status == 'Half day', 1), else_=0)), 0).label("halfday_count"),
+            func.coalesce(func.sum(case((Summary.status == 'Absent', 1), else_=0)), 0).label("absent_count"),
+            func.coalesce(func.sum(case((Summary.checkout_status == 'Undertime', 1), else_=0)), 0).label("undertime_count"),
+            func.coalesce(func.sum(case((Summary.checkout_status == 'No info', 1), else_=0)), 0).label("no_checkout")
+        )
+        .outerjoin(Attendance, Summary.att_id == Attendance.id)
+        .filter(
+            Summary.date >= start_date,
+            Summary.date <= end_date,
+            Summary.employee_id == employee_id
+        )
+        .group_by("year", "month")  
+        .order_by("year", "month")
+        .all()
+    )
+
+    month_lookup = calendar.month_name  
+
+    return [
+    {
+        "date": f"{int(record.year)} {month_lookup[int(record.month)]}",  # Properly formatted date string
+        "results": {
+            "total_late_min": record.total_late,
+            "total_undertime_min": record.total_undertime,
+            "Late": record.late_count,
+            "Absent": record.absent_count,
+            "No Info": record.no_info_count,
+            "Half Day": record.halfday_count,
+            "Undertime": record.undertime_count,
+            "No timeout": record.no_checkout,
+        }
+    }
+    for record in records
+]
+
+
+
+
+
+
+
+
+
