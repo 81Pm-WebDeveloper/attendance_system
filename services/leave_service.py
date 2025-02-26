@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import services.summary_service as summaryService
 
 def update_summaries(db1: Session, db2: Session, start_date: date =None, end_date: date = None):
+    updated_summaries = []
     start_date = start_date or date.today()
     end_date = end_date or date.today()
 
@@ -40,23 +41,27 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
                 current_date += timedelta(days=1)
                 continue  
 
-            # Find existing summary in db1
             existing_summary = db1.query(Summary).filter(
                 Summary.employee_id == leave.empID,
                 Summary.date == current_date
             ).first()
 
             if existing_summary:
-
-                if existing_summary.status != "On Leave":
+                if existing_summary.status != 'On leave':
                     existing_summary.status = 'On leave'
                     if leave.leave_type == 'Official Business':
                         existing_summary.checkout_status = 'Official Business'
 
+                    updated_summaries.append({
+                        "employee_id": existing_summary.employee_id,
+                        "date": existing_summary.date.strftime("%Y-%m-%d"),
+                        "status": existing_summary.status,
+                        "checkout_status": existing_summary.checkout_status
+                    })
             current_date += timedelta(days=1)
 
     db1.commit()
-    return {"message": "Summaries updated successfully"}
+    return {"message": "Summaries updated successfully","Updated": updated_summaries}
 
 
 

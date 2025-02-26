@@ -17,7 +17,7 @@ def get_leave(db: Session = Depends(get_db2),date: str=None):
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
     
-@router.post('/leave-update/',status_code=200,dependencies=[Depends(verify_key)])
+@router.post('/',status_code=200,dependencies=[Depends(verify_key)])
 def leave_update(db1: Session = Depends(get_db), db2: Session = Depends(get_db2),start_date:str = None, end_date:str = None):
     try:
         result = leaveService.update_summaries(db1,db2,start_date,end_date)

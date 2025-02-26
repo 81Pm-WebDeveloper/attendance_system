@@ -39,7 +39,7 @@ def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
         db.query(Summary.employee_id)
         .filter(Summary.date.between(start_date, end_date))
         .filter(Summary.status == "On time")
-        .filter(or_(Summary.checkout_status == "On time", Summary.checkout_status.is_(None)))
+        .filter(or_(Summary.checkout_status == "On time", Summary.checkout_status.is_(None), Summary.checkout_status == 'Official Business'))
         .group_by(Summary.employee_id)
         .having(func.count(Summary.date) == required_days)
         .all()
@@ -84,10 +84,16 @@ if __name__ == "__main__":
 
     print(date_from, date_to)
     required_days = check_holiday(Session,date_from,date_to)
+
     emp_list = get_perfect_attendance(Session, date_from, date_to,required_days)
     print(emp_list)
     if emp_list:
-        insert_voucher(Session, emp_list,date_to)
-        print(f"Vouchers issued to: {emp_list}")
+        try:
+            insert_voucher(Session, emp_list,date_to)
+            print(f"Vouchers issued to: {emp_list}")
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            Session.close()
     else:
         print("No employees qualified for vouchers.")
