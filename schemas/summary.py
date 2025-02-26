@@ -6,7 +6,7 @@ class UpdateSummary(BaseModel):
     id: int
     status: str
     remarks: Optional[str] 
-    checkout_status: Optional[str]
+    checkout_status: Optional[str] 
 
     class Config:
         from_attributes = True
