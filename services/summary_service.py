@@ -268,6 +268,8 @@ def fetch_count(
         "results": final_results,
     }
 
+
+
 def update_status(db: Session, updates: List[UpdateSummary]):
     updated_summaries = []
     failed_updates = []
@@ -279,25 +281,24 @@ def update_status(db: Session, updates: List[UpdateSummary]):
             failed_updates.append(data.id)
             continue  
 
-        update_dict = data.model_dump(exclude_unset=True)  # Only keep provided fields
+        summary.status = data.status
+        summary.remarks = data.remarks
 
-        for key, value in update_dict.items():
-            setattr(summary, key, value)  # Update only fields that were sent
+        if data.checkout_status is not None:
+            summary.checkout_status = data.checkout_status
 
         updated_summaries.append(summary)
 
     if not updated_summaries:
         raise HTTPException(status_code=400, detail="No records to update")
 
-    db.commit()  # No need for `bulk_save_objects()`, just commit
+    db.bulk_save_objects(updated_summaries)
+    db.commit()
 
     for summary in updated_summaries:
         db.refresh(summary)
 
-    return {
-        "updated": [summary.id for summary in updated_summaries],
-        "failed": failed_updates
-    }
+    return {"updated": [summary.id for summary in updated_summaries], "failed": failed_updates}
 
 
 
@@ -317,7 +318,7 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             func.coalesce(
                 func.sum(
                     case(
-                        (Summary.checkout_status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
+                        (Summary.status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
                         else_=0
                     )
                 ), 0
