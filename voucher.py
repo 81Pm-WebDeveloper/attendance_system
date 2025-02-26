@@ -1,5 +1,5 @@
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import func,exists,or_
+from sqlalchemy.sql import func,exists,or_,and_
 from models.attendance import Attendance  
 from models.attendance_summary import Summary  
 from models.vouchers import Vouchers
@@ -38,12 +38,27 @@ def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
     result = (
         db.query(Summary.employee_id)
         .filter(Summary.date.between(start_date, end_date))
-        .filter(Summary.status == "On time")
-        .filter(or_(Summary.checkout_status == "On time", Summary.checkout_status.is_(None), Summary.checkout_status == 'Official Business'))
+        .filter(
+            or_(
+                and_(
+                    Summary.status == "On time",
+                    or_(
+                        Summary.checkout_status == "On time",
+                        Summary.checkout_status.is_(None),
+                        Summary.checkout_status == "Official Business"
+                    )
+                ),
+                and_(
+                    Summary.status == "On leave",
+                    Summary.checkout_status.in_(["Official Business", "PARSO"])
+                )
+            )
+        )
         .group_by(Summary.employee_id)
         .having(func.count(Summary.date) == required_days)
         .all()
     )
+
     
     return [emp[0] for emp in result]
  
@@ -86,7 +101,7 @@ if __name__ == "__main__":
     required_days = check_holiday(Session,date_from,date_to)
 
     emp_list = get_perfect_attendance(Session, date_from, date_to,required_days)
-    print(emp_list)
+
     if emp_list:
         try:
             insert_voucher(Session, emp_list,date_to)
