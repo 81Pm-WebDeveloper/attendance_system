@@ -79,7 +79,8 @@ def batch_insert_update_logs(db: Session, today, employee_logs):
                     "date": today,
                     "time_in": times["time-in"],
                     "time_out": times["time-out"],
-                    "status": times["status"]
+                    "status": times["status"],
+                    
                 })
             else:
                 print(f"Skipping insert for employee_id {emp_id} on {today} because time_in is missing.")

@@ -1,12 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from typing import Optional
 
 
 class UpdateSummary(BaseModel):
     id: int
     status: str
-    remarks: Optional[str] = None
-    checkout_status: Optional[str] = None
+    remarks: Optional[str] 
+    checkout_status: Optional[str]
 
     class Config:
         from_attributes = True

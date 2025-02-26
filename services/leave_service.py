@@ -37,7 +37,7 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
         current_date = max(leave.leave_start, start_date)  
 
         while current_date <= min(leave.leave_end, end_date):
-            if current_date.weekday() == 6:
+            if current_date.weekday() == 6: # SKIPS SUNDAY
                 current_date += timedelta(days=1)
                 continue  
 
@@ -49,9 +49,8 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
             if existing_summary:
                 if existing_summary.status != 'On leave':
                     existing_summary.status = 'On leave'
-                    if leave.leave_type == 'Official Business':
+                    if leave.leave_type == 'Official Business' or 'Perfect Attendance Reward Saturday Off':
                         existing_summary.checkout_status = 'Official Business'
-
                     updated_summaries.append({
                         "employee_id": existing_summary.employee_id,
                         "date": existing_summary.date.strftime("%Y-%m-%d"),
