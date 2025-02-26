@@ -268,8 +268,6 @@ def fetch_count(
         "results": final_results,
     }
 
-
-
 def update_status(db: Session, updates: List[UpdateSummary]):
     updated_summaries = []
     failed_updates = []
@@ -281,21 +279,26 @@ def update_status(db: Session, updates: List[UpdateSummary]):
             failed_updates.append(data.id)
             continue  
 
-        summary.status = data.status
-        summary.remarks = data.remarks
-        summary.checkout_status = data.checkout_status
+        update_dict = data.model_dump(exclude_unset=True)  # Only keep provided fields
+
+        for key, value in update_dict.items():
+            setattr(summary, key, value)  # Update only fields that were sent
+
         updated_summaries.append(summary)
 
     if not updated_summaries:
         raise HTTPException(status_code=400, detail="No records to update")
 
-    db.bulk_save_objects(updated_summaries)
-    db.commit()
+    db.commit()  # No need for `bulk_save_objects()`, just commit
 
     for summary in updated_summaries:
         db.refresh(summary)
 
-    return {"updated": [summary.id for summary in updated_summaries], "failed": failed_updates}
+    return {
+        "updated": [summary.id for summary in updated_summaries],
+        "failed": failed_updates
+    }
+
 
 
 def attendanceReport(db: Session, start_date: datetime, end_date: datetime, employee_id: int):
