@@ -310,6 +310,3 @@ if __name__ == "__main__":
 
     total_time = end_time - start_time
     print(f"Total execution time: {total_time} seconds")
-
-
-

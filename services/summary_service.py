@@ -359,12 +359,3 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
     }
     for record in records
 ]
-
-
-
-
-
-
-
-
-
