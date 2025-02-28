@@ -23,19 +23,19 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False):
     half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
     
     regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
-    #print(f"{is_friday},{time_in},{time_out}")
+    
     if is_friday:
+        
         if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
-            print('Condition 1')
+            #print('Friday')
         elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
-            print('Condition 2') 
+            #print('Condition 2') 
     if is_saturday:
-        # if voucher !== null regular_out_time = (15:00:00)
-        #IF VOUCHER '15:00:00'
+        
         regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
-        print('Saturday')
+        #print('Saturday')
 
       
     if time_out <= half_day_threshold:
@@ -86,6 +86,8 @@ def fetch_logs_for_past_days(conn, db, days):
         log_date = log.timestamp.date()
         is_friday = log.timestamp.date().strftime("%A") == "Friday"
         is_saturday = log.timestamp.date().strftime("%A") == "Saturday"
+        #print(log_date)
+        #print(is_friday)
         if not (start_date <= log_date <= today):
             continue
 
@@ -120,7 +122,23 @@ def fetch_logs_for_past_days(conn, db, days):
         elif punch == "time-out":
             time_out = datetime.strptime(timestamp, '%H:%M:%S').time()
             employee_logs[user_id][log_date]["time-out"] = timestamp
-            result = timeout_status(time_in, time_out, is_friday,is_saturday)
+
+            # Retrieve time-in safely
+            time_in_str = employee_logs[user_id][log_date].get("time-in")
+
+            if time_in_str:  # Ensure time-in exists
+                time_in = datetime.strptime(time_in_str, "%H:%M:%S").time()
+                #print(f"time in- {time_in}, time out- {time_out}")
+
+                # Now pass the correct values
+                result = timeout_status(time_in, time_out, is_friday, is_saturday)
+
+                if isinstance(result, tuple):
+                    employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
+                else:
+                    employee_logs[user_id][log_date]["checkout_status"] = result
+            else:
+                print(f"Missing time-in for {user_id} on {log_date}")
 
             if isinstance(result, tuple):
                 employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
