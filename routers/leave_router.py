@@ -26,9 +26,9 @@ def leave_update(db1: Session = Depends(get_db), db2: Session = Depends(get_db2)
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
 @router.get("/report/",status_code=200,dependencies=[Depends(verify_key)])
-def leave_report(db:Session= Depends(get_db2),start_date:str =None, end_date:str =None, username: str = None):
+def leave_report(db:Session= Depends(get_db2),start_date:str =None, end_date:str =None, employee_id: int = None):
     try:
-        result = leaveService.leave_reports(db,start_date,end_date,username)
+        result = leaveService.leave_reports(db,start_date,end_date,employee_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
