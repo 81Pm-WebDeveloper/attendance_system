@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from models.attendance_summary import Summary
 from models.attendance import Attendance
 from datetime import datetime, date
-from sqlalchemy import asc, or_,desc,func,case,extract
+from sqlalchemy import asc, or_,desc,func,case,extract, and_
 from schemas.summary import UpdateSummary
 from typing import Dict, List
 from math import ceil
@@ -39,8 +39,14 @@ def insert_summary(db: Session, data):
                     if not existing_entry.time_out or item['time_out'] > existing_entry.time_out:
                         existing_entry.time_out = item['time_out']
 
-                if item.get('checkout_status') and item['checkout_status'] != 'No info':
+                if item.get('checkout_status'):
                     existing_entry.checkout_status = item['checkout_status']
+                elif not existing_entry.checkout_status:
+                   
+                    if existing_entry.time_in:
+                        existing_entry.checkout_status = 'No info'
+
+
                     
                 db.add(existing_entry)
 
@@ -308,9 +314,9 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             extract('year', Summary.date).label("year"),
             extract('month', Summary.date).label("month"),
             func.coalesce(
-            func.sum(
+                func.sum(
                     case(
-                        (Summary.status != 'On time', Attendance.late_min),
+                        (Summary.status.notin_(['On time', 'On leave']), Attendance.late_min),
                         else_=0
                     )
                 ), 0
@@ -318,17 +324,25 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             func.coalesce(
                 func.sum(
                     case(
-                        (Summary.status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
+                        (Summary.checkout_status.notin_(['On time', 'Official Business']), Attendance.undertime_min),
                         else_=0
                     )
                 ), 0
             ).label("total_undertime"),
             func.coalesce(func.sum(case((Summary.status == 'Late', 1), else_=0)), 0).label("late_count"),
             func.coalesce(func.sum(case((Summary.status == 'No info', 1), else_=0)), 0).label("no_info_count"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (and_(Summary.status == 'No info', Attendance.late_min > 0), 1), 
+                        else_=0
+                    )
+                ), 0
+            ).label("late_no_info_count"),
             func.coalesce(func.sum(case((Summary.status == 'Half day', 1), else_=0)), 0).label("halfday_count"),
             func.coalesce(func.sum(case((Summary.status == 'Absent', 1), else_=0)), 0).label("absent_count"),
             func.coalesce(func.sum(case((Summary.checkout_status == 'Undertime', 1), else_=0)), 0).label("undertime_count"),
-            func.coalesce(func.sum(case((Summary.checkout_status == 'No info', 1), else_=0)), 0).label("no_checkout")
+            func.coalesce(func.sum(case((Summary.checkout_status == 'No info', 1), else_=0)), 0).label("no_checkout"),
         )
         .outerjoin(Attendance, Summary.att_id == Attendance.id)
         .filter(
@@ -339,8 +353,8 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
         .group_by("year", "month")  
         .order_by("year", "month")
         .all()
-    )
 
+    )
     month_lookup = calendar.month_name  
 
     return [
@@ -350,6 +364,7 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             "total_late_min": record.total_late,
             "total_undertime_min": record.total_undertime,
             "Late": record.late_count,
+            "Late(No info)": record.late_no_info_count,
             "Absent": record.absent_count,
             "No Info": record.no_info_count,
             "Half Day": record.halfday_count,
