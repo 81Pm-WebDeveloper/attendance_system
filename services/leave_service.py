@@ -93,16 +93,14 @@ def get_leaves(db: Session,check_date: date = None):
     return response  
 
 
-
-
-
-def leave_reports(db: Session, start_date: str, end_date: str, username: str):
+def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
+    username = db.query(Employee2.username).filter(Employee2.empID == employee_id).scalar()
+    
     records = (
         db.query(
-            Leave.emp_username,
             Leave.leave_type,
             Leave.leave_start,
             Leave.leave_end
@@ -117,36 +115,46 @@ def leave_reports(db: Session, start_date: str, end_date: str, username: str):
     )
 
     result = {}
-    unique_days = set()  # Track (employee, date) to avoid duplicate counting
+    unique_days = set()
 
     for record in records:
         current_date = max(record.leave_start, start_date)
         leave_end = min(record.leave_end, end_date)
 
         while current_date <= leave_end:
-            if current_date.weekday() == 6:  
+            if current_date.weekday() == 6:  # Skip Sundays
                 current_date += timedelta(days=1)
                 continue  
 
-            if (record.emp_username, current_date) in unique_days:
+            if current_date in unique_days:
                 current_date += timedelta(days=1)
                 continue  
 
-            unique_days.add((record.emp_username, current_date))  
+            unique_days.add(current_date)
 
             year_month = f"{current_date.year} {calendar.month_name[current_date.month]}"
 
-            if record.emp_username not in result:
-                result[record.emp_username] = {}
+            if year_month not in result:
+                result[year_month] = {
+                    "Vacation Leave": 0,
+                    "Sick Leave": 0,
+                    "Solo Parent Leave": 0,
+                    "Other Leave" : 0
+                }
 
-            if year_month not in result[record.emp_username]:
-                result[record.emp_username][year_month] = {}
-
-            if record.leave_type not in result[record.emp_username][year_month]:
-                result[record.emp_username][year_month][record.leave_type] = 0
-
-            result[record.emp_username][year_month][record.leave_type] += 1
+            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave","Solo Parent Leave"] else "Other Leave"
+            result[year_month][leave_type] += 1
 
             current_date += timedelta(days=1)
 
-    return result
+    # Convert to required structure
+    formatted_result = []
+    for month, leaves in result.items():
+        formatted_result.append({
+            "date": month,
+            "results": leaves
+        })
+
+    return formatted_result
+
+

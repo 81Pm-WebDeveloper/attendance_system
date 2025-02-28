@@ -39,7 +39,7 @@ def insert_summary(db: Session, data):
                     if not existing_entry.time_out or item['time_out'] > existing_entry.time_out:
                         existing_entry.time_out = item['time_out']
 
-                if item.get('checkout_status') != 'No info':
+                if item.get('checkout_status') and item['checkout_status'] != 'No info':
                     existing_entry.checkout_status = item['checkout_status']
                     
                 db.add(existing_entry)
