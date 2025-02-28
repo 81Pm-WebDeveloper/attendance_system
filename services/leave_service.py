@@ -138,10 +138,11 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                 result[year_month] = {
                     "Vacation Leave": 0,
                     "Sick Leave": 0,
-                    "Solo Parent Leave": 0  
+                    "Solo Parent Leave": 0,
+                    "Other Leave" : 0
                 }
 
-            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave"] else "SPL"
+            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave","Solo Parent Leave"] else "Other Leave"
             result[year_month][leave_type] += 1
 
             current_date += timedelta(days=1)
