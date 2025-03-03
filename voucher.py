@@ -34,7 +34,7 @@ def check_holiday(db, monday, saturday):
 
 
 def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
-    if(required_days > 5): print('Working holiday > 1'); return
+    if(required_days < 5): print('Working holiday > 1'); return
     result = (
         db.query(Summary.employee_id)
         .filter(Summary.date.between(start_date, end_date))

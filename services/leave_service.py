@@ -97,8 +97,11 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    username = db.query(Employee2.username).filter(Employee2.empID == employee_id).scalar()
+    emp = db.query(Employee2.username, Employee2.fullname).filter(Employee2.empID == employee_id).first()
     
+    if not emp:
+        return {"error": "Employee not found"}
+
     records = (
         db.query(
             Leave.leave_type,
@@ -106,7 +109,7 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
             Leave.leave_end
         )
         .filter(
-            Leave.emp_username == username,
+            Leave.emp_username == emp.username,
             Leave.leave_status == 'APPROVED',
             Leave.leave_start <= end_date,
             Leave.leave_end >= start_date
@@ -139,21 +142,25 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                     "Vacation Leave": 0,
                     "Sick Leave": 0,
                     "Solo Parent Leave": 0,
-                    "Other Leave" : 0
+                    "Other Leave": 0
                 }
 
-            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave","Solo Parent Leave"] else "Other Leave"
+            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave", "Solo Parent Leave"] else "Other Leave"
             result[year_month][leave_type] += 1
 
             current_date += timedelta(days=1)
 
-    # Convert to required structure
-    formatted_result = []
-    for month, leaves in result.items():
-        formatted_result.append({
-            "date": month,
-            "results": leaves
-        })
+    # Structure the response properly
+    formatted_result = {
+        "fullname": emp.fullname,
+        "leave_data": [
+            {
+                "date": month,
+                "results": leaves
+            }
+            for month, leaves in result.items()
+        ]
+    }
 
     return formatted_result
 

@@ -16,9 +16,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert
 # Initialize DB session
 import time
+
 #-----------------------------------------------------------
 
-def timeout_status(time_in, time_out, is_friday=False,is_saturday= False):
+def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_voucher= False):
     
     half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
     
@@ -33,8 +34,12 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False):
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
             #print('Condition 2') 
     if is_saturday:
-        
-        regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+        if is_voucher:
+            regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
+            print('3')
+        else:
+            regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+            print('5')
         #print('Saturday')
 
       
@@ -130,8 +135,14 @@ def fetch_logs_for_past_days(conn, db, days):
                 time_in = datetime.strptime(time_in_str, "%H:%M:%S").time()
                 #print(f"time in- {time_in}, time out- {time_out}")
 
-                # Now pass the correct values
-                result = timeout_status(time_in, time_out, is_friday, is_saturday)
+                voucher = db.query(Attendance.voucher_id).filter(
+                    Attendance.employee_id == user_id,
+                    Attendance.date == log_date
+                ).first()
+
+                is_voucher = bool(voucher and voucher[0])
+
+                result = timeout_status(time_in, time_out, is_friday, is_saturday, is_voucher)
 
                 if isinstance(result, tuple):
                     employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
