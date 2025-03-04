@@ -21,3 +21,7 @@ class AttendanceToday(BaseModel):
     department: str
     position: str
     status: str
+
+class VoucherUseRequest(BaseModel):
+    voucher_id: int
+    att_id: int

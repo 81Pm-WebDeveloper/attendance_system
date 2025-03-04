@@ -36,10 +36,10 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
     if is_saturday:
         if is_voucher:
             regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
-            print('3')
+            
         else:
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
-            print('5')
+            
         #print('Saturday')
 
       
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
     start_time = time.time()
-    days = 7
+    days = 4
     today = date.today()
     start_date = today - timedelta(days=days)
     db = next(get_db())

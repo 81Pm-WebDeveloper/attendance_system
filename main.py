@@ -7,6 +7,7 @@ from models.vouchers import Vouchers
 from models.attendance_summary import Summary
 from models.emp_list import Employee2
 from routers import attendance_router
+from routers import voucher_router
 from routers import summary_router
 #from routers import employee_router
 from routers import leave_router
@@ -42,3 +43,4 @@ app.add_middleware(
 #app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
 app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])
+app.include_router(voucher_router.router,prefix = "/voucher", tags=["Voucher"])

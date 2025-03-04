@@ -351,6 +351,7 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
         .all()
 
     )
+    
     month_lookup = calendar.month_name  
 
     return [
