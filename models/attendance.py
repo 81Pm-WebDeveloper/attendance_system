@@ -17,7 +17,7 @@ class Attendance(Base):
 
     
     __table_args__ = (
-        Index("idx_employee_date", "employee_id", "date"),  
-        Index("idx_date", "date"),
-        UniqueConstraint('employee_id','date',name='uq_employee_date')    
+        Index("idx_date", "date"),  # Keep if you frequently query by date alone
+        UniqueConstraint('employee_id', 'date', name='uq_employee_date')  # Ensures uniqueness
     )
+

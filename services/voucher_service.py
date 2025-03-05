@@ -5,6 +5,8 @@ from models.attendance import Attendance
 from datetime import date,datetime
 #from schemas.attendance import VoucherUseRequest
 
+
+
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     vouchers = db.query(Vouchers).filter(
         Vouchers.employee_id == employee_id,

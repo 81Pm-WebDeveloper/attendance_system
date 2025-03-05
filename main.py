@@ -43,4 +43,6 @@ app.add_middleware(
 #app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
 app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])
-app.include_router(voucher_router.router,prefix = "/voucher", tags=["Voucher"])
+
+
+#app.include_router(voucher_router.router,prefix = "/voucher", tags=["Voucher"])  RELEASE

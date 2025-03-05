@@ -14,6 +14,5 @@ class Summary(Base):
     remarks = Column(Text)
 
     __table_args__ = (
-        Index("idx_employee_date", "employee_id", "date"),
         UniqueConstraint('employee_id', 'date', name='uq_employee_date'),
     )
