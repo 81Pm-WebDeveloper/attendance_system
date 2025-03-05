@@ -326,7 +326,14 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
                 ), 0
             ).label("total_undertime"),
             func.coalesce(func.sum(case((Summary.status == 'Late', 1), else_=0)), 0).label("late_count"),
-            func.coalesce(func.sum(case((Summary.status == 'No info', 1), else_=0)), 0).label("no_info_count"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (and_(Summary.status == 'No info', Attendance.late_min == None), 1), 
+                        else_=0
+                    )
+                ), 0
+            ).label("no_info_count"),
             func.coalesce(
                 func.sum(
                     case(
