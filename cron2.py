@@ -182,7 +182,7 @@ import requests
 import json
 
 def insert_attendance(data):
-    url = "http://127.0.0.1:8080/attendance/"
+    url = os.getenv('api-url')
     headers = {
         "Content-Type": "application/json",
         "API-KEY": os.getenv('api_key')
