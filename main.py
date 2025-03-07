@@ -40,7 +40,7 @@ app.add_middleware(
 
 
 #app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
-#app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
+app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
 app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])
 
