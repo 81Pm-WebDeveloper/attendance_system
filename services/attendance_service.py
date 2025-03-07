@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 from models.attendance import Attendance
 from models.emp_list import Employee2
 from datetime import datetime, date
-from sqlalchemy import or_,desc,and_
+from sqlalchemy import or_,desc,and_,tuple_
 from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil
-
+from sqlalchemy.dialects.mysql import insert
 
 
 load_dotenv()
@@ -61,41 +61,86 @@ def fetch_logs_for_today(conn, db: Session):
     logs_today = batch_insert_update_logs(db, today, employee_logs)
     return logs_today
 
-def batch_insert_update_logs(db: Session, today, employee_logs):
+
+## NEW
+def batch_insert_update_logs(db:Session, employee_logs):
+    emp_date_pairs = [(emp_id, date) for emp_id, dates in employee_logs.items() 
+                      for date in dates.keys()]
+    
+    existing_records = {
+        (record.employee_id, record.date): record
+        for record in db.query(Attendance).filter(
+            tuple_(Attendance.employee_id, Attendance.date).in_(emp_date_pairs)
+        )
+    }
+    
     inserts = []
     updates = []
-
-    for emp_id, times in employee_logs.items():
-        existing_record = db.query(Attendance).filter(Attendance.employee_id == emp_id,
-                                                              Attendance.date == today).first()
-
-        if existing_record:
-            if times["time-out"]:
-                updates.append({"time_out": times["time-out"], "employee_id": emp_id, "date": today})
-        else:
-            if times["time-in"]:
-                inserts.append({
-                    "employee_id": emp_id,
-                    "date": today,
-                    "time_in": times["time-in"],
-                    "time_out": times["time-out"],
-                    "status": times["status"],
-                    
-                })
+    
+    for emp_id, dates in employee_logs.items():
+        for log_date, times in dates.items():
+            existing_record = existing_records.get((emp_id, log_date))
+            
+            if existing_record:
+                if times["time-out"]:
+                    existing_record.time_out = times["time-out"]
+                    existing_record.checkout_status = times["checkout_status"]
+                    existing_record.undertime_min = times["undertime_min"]
+                    updates.append(existing_record)
             else:
-                print(f"Skipping insert for employee_id {emp_id} on {today} because time_in is missing.")
+                if times["time-in"]:
+                    inserts.append({
+                        'employee_id': emp_id,
+                        'date': log_date,
+                        'time_in': times["time-in"],
+                        'time_out': times["time-out"],
+                        'status': times["status"],
+                        'checkout_status': times["checkout_status"],
+                        'late_min': times.get("late_min", 0),
+                        'undertime_min': times.get("undertime_min", 0)
+                    })
+                else:
+                    print(f"Skipping insert for employee_id {emp_id} on {log_date} because time_in is missing.")
+    
+    try:
+        if inserts:
+            for batch in chunks(inserts, 1000): 
+                stmt = insert(Attendance).values(batch)
+                update_dict = {
+                    'time_out': stmt.inserted.time_out,
+                    'checkout_status': stmt.inserted.checkout_status,
+                    'undertime_min': stmt.inserted.undertime_min
+                }
+                stmt = stmt.on_duplicate_key_update(**update_dict)
+                db.execute(stmt)
+        
+        if updates:
+            db.bulk_update_mappings(Attendance, [
+                {
+                    'id': record.id,
+                    'time_out': record.time_out,
+                    'checkout_status': record.checkout_status,
+                    'undertime_min': record.undertime_min
+                }
+                for record in updates
+            ])
+            
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Database error: {e}")
+        raise
+    
+    return len(inserts), len(updates)
+#-----------------------------------------------------------
 
-    if inserts:
-        db.bulk_insert_mappings(Attendance, inserts)
-    if updates:
-        for update in updates:
-            existing_record = db.query(Attendance).filter(Attendance.employee_id == update["employee_id"],
-                                                                  Attendance.date == today).first()
-            existing_record.time_out = update["time_out"]
-            db.add(existing_record)
-    db.commit()
-    return inserts
-    #conn.clear_attendance()
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+#-----------------------------------------------------------
+
+
 
 def check_existing_record(db: Session, user_id, log_date):
     return db.query(Attendance).filter(Attendance.employee_id == user_id,

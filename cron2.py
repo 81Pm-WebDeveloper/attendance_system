@@ -17,6 +17,9 @@ from sqlalchemy.dialects.mysql import insert
 # Initialize DB session
 import time
 
+import requests
+import json
+
 #-----------------------------------------------------------
 
 def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_voucher= False):
@@ -54,9 +57,7 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
         return (undertime_min, "Undertime")
 
     elif time_out >= regular_out_time:
-        #print(f"{time_out} - {regular_out_time}")
         return (None, "On time")
-
 
     else:
         return (None, "WTF EDGE CASE")
@@ -77,9 +78,8 @@ def time_status(time_in):
         return (late_min, "Late")
 
     else:
-        return (None,"On time")
+        return "On time"
 #-----------------------------------------------------------
-
 
 def fetch_logs_for_past_days(conn, db, days):
     today = date.today()
@@ -139,19 +139,20 @@ def fetch_logs_for_past_days(conn, db, days):
             is_friday = log_date.strftime("%A") == "Friday"
             is_saturday = log_date.strftime("%A") == "Saturday"
 
-            voucher = db.query(Attendance.voucher_id).filter(
-                Attendance.employee_id == user_id,
-                Attendance.date == log_date
-            ).first()
+            # voucher = db.query(Attendance.voucher_id).filter(
+            #     Attendance.employee_id == user_id,
+            #     Attendance.date == log_date
+            # ).first()
 
-            is_voucher = bool(voucher and voucher[0])
+            #is_voucher = bool(voucher and voucher[0])
+            is_voucher = True
             result = timeout_status(time_in, time_out, is_friday, is_saturday, is_voucher)
 
             if isinstance(result, tuple):
                 employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
             elif result:
                 employee_logs[user_id][log_date]["checkout_status"] = result
-
+    dataBody = prepare_employee_logs(employee_logs)
     #print(employee_logs)
     try:
         conn.enable_device()
@@ -159,82 +160,42 @@ def fetch_logs_for_past_days(conn, db, days):
         conn.disconnect()
 
     if employee_logs:
-        return batch_insert_update_logs(db, employee_logs)
+        insert_attendance(dataBody)
+        return 
 
     print(f"No attendance records for the past {days} days. Skipping database update.")
     return None
 
-#-----------------------------------------------------------
 
-def batch_insert_update_logs(db, employee_logs):
-    emp_date_pairs = [(emp_id, date) for emp_id, dates in employee_logs.items() 
-                      for date in dates.keys()]
-    
-    existing_records = {
-        (record.employee_id, record.date): record
-        for record in db.query(Attendance).filter(
-            tuple_(Attendance.employee_id, Attendance.date).in_(emp_date_pairs)
-        )
+#--------------------------------------------------------------
+def prepare_employee_logs(employee_logs):
+    formatted_logs = {
+        emp_id: {
+            log_date.strftime("%Y-%m-%d"): log_data  # Convert date to string
+            for log_date, log_data in dates.items()
+        }
+        for emp_id, dates in employee_logs.items()
     }
-    
-    inserts = []
-    updates = []
-    
-    for emp_id, dates in employee_logs.items():
-        for log_date, times in dates.items():
-            existing_record = existing_records.get((emp_id, log_date))
-            
-            if existing_record:
-                if times["time-out"]:
-                    existing_record.time_out = times["time-out"]
-                    existing_record.checkout_status = times["checkout_status"]
-                    existing_record.undertime_min = times["undertime_min"]
-                    updates.append(existing_record)
-            else:
-                if times["time-in"]:
-                    inserts.append({
-                        'employee_id': emp_id,
-                        'date': log_date,
-                        'time_in': times["time-in"],
-                        'time_out': times["time-out"],
-                        'status': times["status"],
-                        'checkout_status': times["checkout_status"],
-                        'late_min': times.get("late_min", 0),
-                        'undertime_min': times.get("undertime_min", 0)
-                    })
-                else:
-                    print(f"Skipping insert for employee_id {emp_id} on {log_date} because time_in is missing.")
+    return formatted_logs
+#-----------------------------------------------------------
+import requests
+import json
+
+def insert_attendance(data):
+    url = "http://127.0.0.1:8080/attendance/"
+    headers = {
+        "Content-Type": "application/json",
+        "API-KEY": os.getenv('api_key')
+        }
     
     try:
-        if inserts:
-            for batch in chunks(inserts, 1000): 
-                stmt = insert(Attendance).values(batch)
-                update_dict = {
-                    'time_out': stmt.inserted.time_out,
-                    'checkout_status': stmt.inserted.checkout_status,
-                    'undertime_min': stmt.inserted.undertime_min
-                }
-                stmt = stmt.on_duplicate_key_update(**update_dict)
-                db.execute(stmt)
-        
-        if updates:
-            db.bulk_update_mappings(Attendance, [
-                {
-                    'id': record.id,
-                    'time_out': record.time_out,
-                    'checkout_status': record.checkout_status,
-                    'undertime_min': record.undertime_min
-                }
-                for record in updates
-            ])
-            
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        print(f"Database error: {e}")
-        raise
-    
-    return len(inserts), len(updates)
+        response = requests.post(url, data=json.dumps(data), headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
+        return response.json()  # Return the parsed JSON response
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+
 #-----------------------------------------------------------
 
 def chunks(lst, n):
@@ -253,71 +214,13 @@ def connect_to_device(ip, port=4370):
         raise Exception(f"Unable to connect to device: {e}")
 #-----------------------------------------------------------
 
-def insert_summary(
-    db: Session ,
-    db2: Session,
-    start_date = str,
-    end_date = str 
-    ):
-    try:
-        response = attendanceService.fetch_attendance_cron(db,db2,start_date,end_date) #first loop
-        data = [
-            {
-                "employee_id": row["employee_id"],
-                "att_id": row["att_id"],
-                "date": row["date"],
-                "time_in":row["time_in"],
-                "time_out":row["time_out"],
-                "status": row["status"],
-                "checkout_status": row["checkout_status"],
-            }
-            for row in response #loop 2
-        ]
-        
-        entries = summaryService.insert_summary(db, data)
-
-        return {"detail": f"Summary logs inserted"}
-    except HTTPException as e:
-        raise e  
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-
-
-def insert_summary_today(
-    db: Session ,
-    db2: Session,
-    start_date = str,
-    end_date = str 
-    ):
-    try:
-        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
-        data = [
-            {
-                "employee_id": row["employee_id"],
-                "att_id": row["att_id"],
-                "date": row["date"],
-                "time_in":row["time_in"],
-                "time_out":row["time_out"],
-                "status": row["status"],
-                "checkout_status": row["checkout_status"],
-            }
-            for row in response 
-        ]
-        
-        entries = summaryService.insert_summary(db, data)
-
-        return {"detail": f"Summary logs inserted"}
-    except HTTPException as e:
-        raise e  
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 if __name__ == "__main__":
     load_dotenv()
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
     start_time = time.time()
-    days = 3
+    days = 4
     today = date.today()
     start_date = today - timedelta(days=days)
     db = next(get_db())
@@ -325,7 +228,7 @@ if __name__ == "__main__":
     try:
         conn = connect_to_device(device_ip, port)
         fetch_logs_for_past_days(conn, db, days)
-        insert_summary(db,db2,start_date = start_date, end_date=today)
+        #insert_summary(db,db2,start_date = start_date, end_date=today)
         #insert_summary_today(db,db2,start_date=today,end_date=today)
         
     except Exception as e:
