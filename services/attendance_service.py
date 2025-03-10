@@ -9,7 +9,7 @@ from zk import ZK
 from sqlalchemy.sql import func
 from math import ceil
 from sqlalchemy.dialects.mysql import insert
-
+from datetime import timedelta
 
 load_dotenv()
 
@@ -354,7 +354,56 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
 
     return result
 
+#OPTION 2 - slower - works better even without daily trigger
+# def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
+#     excluded_positions = {'System Admin', 'SystemTester', 'Admin', 'CEO', 'Manager'}
+#     result = []
 
+#     current_date = start_date
+#     while current_date <= end_date:
+#         day_of_week = current_date.strftime('%a').upper()
+
+#         employees = db2.query(
+#             Employee2.empID,
+#             Employee2.work_sched
+#         ).filter(
+#             Employee2.status == "Active",
+#             Employee2.department != 'MANAGEMENT',
+#             ~Employee2.position.in_(excluded_positions),
+#             func.find_in_set(day_of_week, Employee2.work_sched) > 0  
+#         ).all()
+
+#         for employee in employees:
+#             # Fetch attendance for this employee on this specific date
+#             attendance = db1.query(
+#                 Attendance.id,
+#                 Attendance.employee_id,
+#                 Attendance.date,
+#                 Attendance.time_in,
+#                 Attendance.time_out,
+#                 Attendance.status,
+#                 Attendance.checkout_status
+#             ).filter(
+#                 Attendance.date == current_date,
+#                 Attendance.employee_id == employee.empID
+#             ).first()
+
+#             if attendance:  # Employee has an attendance record
+#                 result.append({
+#                     "employee_id": employee.empID,
+#                     "att_id": attendance.id,
+#                     "date": attendance.date,
+#                     "time_in": attendance.time_in,
+#                     "time_out": attendance.time_out,
+#                     "status": attendance.status,
+#                     "checkout_status": attendance.checkout_status,
+#                 })
+
+#         current_date += timedelta(days=1)
+
+#     return result
+
+#faster - enough if (daily trigger)
 def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
     today = date.today().strftime('%a').upper()
 
@@ -367,7 +416,7 @@ def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date
         Employee2.status == "Active",
         Employee2.department != 'MANAGEMENT',
         ~Employee2.position.in_(excluded_positions),  
-        func.find_in_set(today, Employee2.work_sched) > 0  
+        #func.find_in_set(today, Employee2.work_sched) > 0  
     ).all()
 
     # Get only existing attendance records
@@ -402,4 +451,3 @@ def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date
                 })
 
     return result
-
