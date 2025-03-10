@@ -41,7 +41,7 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
             regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
             
         else:
-            regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+            regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time() # change when voucher == implemented
             
         #print('Saturday')
 
@@ -81,7 +81,7 @@ def time_status(time_in):
         return "On time"
 #-----------------------------------------------------------
 
-def fetch_logs_for_past_days(conn, db, days):
+def fetch_logs_for_past_days(conn, days):
     today = date.today()
     start_date = today if days == 0 else today - timedelta(days=days)  # Fix for days=0
 
@@ -217,25 +217,21 @@ def connect_to_device(ip, port=4370):
 
 if __name__ == "__main__":
     load_dotenv()
-    device_ip = os.getenv("device_ip")
-    port = int(os.getenv("device_port", 4370))
+    device_ip = os.getenv("device_ip_oc")
+    port = int(os.getenv("device_port_oc", 4370))
     start_time = time.time()
-    days = 4
+    days = 2
     today = date.today()
     start_date = today - timedelta(days=days)
-    db = next(get_db())
-    db2 = next(get_db2())
+    
     try:
         conn = connect_to_device(device_ip, port)
-        fetch_logs_for_past_days(conn, db, days)
+        fetch_logs_for_past_days(conn, days)
         #insert_summary(db,db2,start_date = start_date, end_date=today)
         #insert_summary_today(db,db2,start_date=today,end_date=today)
         
     except Exception as e:
         print(f"Error: {e}")
-    finally:
-        db.close()
-        db2.close()
     end_time = time.time()
 
     total_time = end_time - start_time

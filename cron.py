@@ -283,7 +283,7 @@ def insert_summary(
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 
-def insert_summary_today(
+"""def insert_summary_today(
     db: Session ,
     db2: Session,
     start_date = str,
@@ -311,13 +311,13 @@ def insert_summary_today(
         raise e  
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-
+"""
 if __name__ == "__main__":
     load_dotenv()
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
     start_time = time.time()
-    days = 3
+    days = 7
     today = date.today()
     start_date = today - timedelta(days=days)
     db = next(get_db())
