@@ -204,7 +204,7 @@ def chunks(lst, n):
         yield lst[i:i + n]
 #-----------------------------------------------------------
 
-def connect_to_device(ip, port=4370):
+def connect_to_device(ip, port):
     zk = ZK(ip, port=port, timeout=5)
     try:
         conn = zk.connect()
@@ -218,7 +218,7 @@ def connect_to_device(ip, port=4370):
 if __name__ == "__main__":
     load_dotenv()
     device_ip = os.getenv("device_ip_oc")
-    port = int(os.getenv("device_port_oc", 4370))
+    port = int(os.getenv("device_port_oc"))
     start_time = time.time()
     days = 2
     today = date.today()
