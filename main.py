@@ -45,4 +45,4 @@ app.include_router(summary_router.router, prefix="/summary", tags=["Summary"])
 app.include_router(leave_router.router, prefix="/leave-app", tags=["Leave"])
 
 
-#app.include_router(voucher_router.router,prefix = "/voucher", tags=["Voucher"])  RELEASE
+app.include_router(voucher_router.router,prefix = "/voucher", tags=["Voucher"])  # RELEASE

@@ -28,9 +28,11 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
     if is_friday:
         
         if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
+            half_day_threshold = datetime.strptime('12:00:00','%H:%M:%S').time()
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
             #print('Friday')
         elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
+            half_day_threshold = datetime.strptime('12:30:00','%H:%M:%S').time()
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
             #print('Condition 2') 
     if is_saturday:
@@ -38,15 +40,13 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
             regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
             
         else:
-            regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
+            regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
             
         #print('Saturday')
 
       
     if time_out <= half_day_threshold:
-        undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
-        undertime_min = max(0, undertime_min -60)
-        return (undertime_min, "Undertime")
+        return (None, "Half Day")
 
     elif time_out < regular_out_time:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
@@ -70,7 +70,7 @@ def time_status(time_in):
 
     if time_in >= half_day_threshold:  
         late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, half_day_base_time)).seconds // 60
-        return (late_min, "Half Day") if time_in > half_day_base_time else (None, "Half Day")
+        return (late_min, "Half Day") if time_in < half_day_base_time else (None, "Half Day")
 
     elif time_in >= late_threshold: 
         late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, base_time)).seconds // 60
@@ -145,6 +145,7 @@ def fetch_logs_for_past_days(conn, db, days):
             ).first()
 
             is_voucher = bool(voucher and voucher[0])
+            
             result = timeout_status(time_in, time_out, is_friday, is_saturday, is_voucher)
 
             if isinstance(result, tuple):
@@ -317,7 +318,7 @@ if __name__ == "__main__":
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
     start_time = time.time()
-    days = 7
+    days = 3
     today = date.today()
     start_date = today - timedelta(days=days)
     db = next(get_db())

@@ -77,8 +77,6 @@ def insert_summary(db: Session, data):
         raise Exception(f"Failed to insert summary data: {e}")
 
 
-
-#DONE
 def fetch_summary(
     db1: Session,
     db2: Session,
@@ -86,7 +84,7 @@ def fetch_summary(
     page_size: int = 10,
     search_query: str = None,
     date_from: str = None,
-    date_to: str = None,  #Change to single date
+    date_to: str = None,  # Change to single date
     employee_id_filter: str = None,
 ) -> Dict:
 
@@ -95,7 +93,8 @@ def fetch_summary(
     else:
         offset = 0  
 
-    base_query = db1.query(Summary)
+    base_query = db1.query(Summary, Attendance.voucher_id)\
+        .outerjoin(Attendance, Summary.att_id == Attendance.id)  # Join Attendance to get voucher_id
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -114,7 +113,6 @@ def fetch_summary(
     if employee_id_filter:
         base_query = base_query.filter(Summary.employee_id == employee_id_filter).order_by(Summary.date.desc())
         
-
     total_count = base_query.count()
 
     status_counts = (
@@ -137,7 +135,6 @@ def fetch_summary(
         result = base_query.all() 
         limit = total_count  
 
-
     employee_data = (
         db2.query(
             Employee2.empID,
@@ -147,17 +144,16 @@ def fetch_summary(
             Employee2.company,
             Employee2.branch,
         )
-        .filter(Employee2.empID.in_([summary.employee_id for summary in result]))
+        .filter(Employee2.empID.in_([summary.employee_id for summary, _ in result]))
         .order_by(Employee2.department) 
         .all()
     )
 
     employee_map = {employee.empID: employee for employee in employee_data}
-                    #KEY            #VALUE
    
     sorted_result = sorted(
         result, 
-        key=lambda summary: employee_map.get(summary.employee_id).department if employee_map.get(summary.employee_id) else ""
+        key=lambda row: employee_map.get(row[0].employee_id).department if employee_map.get(row[0].employee_id) else ""
     )
 
     return {
@@ -167,15 +163,17 @@ def fetch_summary(
         "status_summary": status_summary,
         "results": [
             {
-                **summary.__dict__, #EXTRACTS THE VALUE OF sorted_result -------------------------------------
+                **summary.__dict__,
                 "employee_department": employee_map.get(summary.employee_id).department,
                 "employee_name": employee_map.get(summary.employee_id).fullname,
                 "employee_position": employee_map.get(summary.employee_id).position,
-                "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})"
+                "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})",
+                "voucher_id": voucher_id  
             }
-            for summary in sorted_result  
+            for summary, voucher_id in sorted_result  
         ],
     }
+
 
 
 

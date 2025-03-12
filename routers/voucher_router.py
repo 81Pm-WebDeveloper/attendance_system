@@ -30,4 +30,10 @@ def use_voucher(body: VoucherUseRequest, db: Session = Depends(get_db)):
         return voucherService.use_voucher(db, body.voucher_id, body.att_id )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-    
+
+@router.put("/cancel/",status_code=200, dependencies=[Depends(verify_key)])
+def cancel_voucher(body: VoucherUseRequest, db: Session= Depends(get_db)):
+    try:
+        return voucherService.cancel_voucher(db,body.voucher_id,body.att_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occured: {e}")

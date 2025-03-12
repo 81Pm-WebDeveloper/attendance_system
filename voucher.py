@@ -12,7 +12,7 @@ Session = SessionLocal()
 
 def get_last_week_range():
     today = datetime.today()
-    last_week_monday = today - timedelta(days=today.weekday() + 7)
+    last_week_monday = today - timedelta(days=today.weekday() + 7) #0-6 => mon - sun
     last_week_saturday = last_week_monday + timedelta(days=5)
     
     return last_week_monday.date(), last_week_saturday.date()
