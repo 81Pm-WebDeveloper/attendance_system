@@ -4,11 +4,18 @@ import services.leave_service as leaveService
 from db.database2 import get_db2
 from db.database import get_db
 
-
+from schemas.attendance import Parso
 from config.authentication import verify_key
 
 router = APIRouter()
-
+@router.post("/reward/",status_code=201,dependencies=[Depends(verify_key)])
+def Parso(body: Parso,db:Session= Depends(get_db2)):
+    try:
+        result = leaveService.reward_leave(db,body)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
+    
 @router.get("/",status_code=200, dependencies=[Depends(verify_key)],)
 def get_leave(db: Session = Depends(get_db2),date: str=None):
     try:

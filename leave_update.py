@@ -49,12 +49,12 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
             ).first()
 
             if existing_summary:
-                if existing_summary.status != 'On leave':
+                if existing_summary.status != 'On leave' or 'Official Business':
                     existing_summary.status = 'On leave'
                     if leave.leave_type == 'Official Business':
-                        existing_summary.checkout_status = 'Official Business'
+                        existing_summary.status = 'Official Business'
                     if leave.leave_type == 'Perfect Attendance Reward Saturday Off':
-                        existing_summary.checkout_status = 'PARSO'
+                        existing_summary.status = 'PARSO'
                     updated_summaries.append({
                         "employee_id": existing_summary.employee_id,
                         "date": existing_summary.date.strftime("%Y-%m-%d"),

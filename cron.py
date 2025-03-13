@@ -21,18 +21,18 @@ import time
 
 def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_voucher= False):
     
-    half_day_threshold = datetime.strptime('13:00:00', '%H:%M:%S').time()
+    half_day_threshold = datetime.strptime('13:10:00', '%H:%M:%S').time()
     
     regular_out_time = datetime.strptime('18:00:00', '%H:%M:%S').time()
     
     if is_friday:
         
-        if time_in < datetime.strptime('08:00:00', '%H:%M:%S').time():
-            half_day_threshold = datetime.strptime('12:00:00','%H:%M:%S').time()
+        if time_in < datetime.strptime('08:01:00', '%H:%M:%S').time():
+            half_day_threshold = datetime.strptime('12:10:00','%H:%M:%S').time()
             regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
             #print('Friday')
-        elif time_in < datetime.strptime('08:30:00', '%H:%M:%S').time():
-            half_day_threshold = datetime.strptime('12:30:00','%H:%M:%S').time()
+        elif time_in < datetime.strptime('08:31:00', '%H:%M:%S').time():
+            half_day_threshold = datetime.strptime('12:40:00','%H:%M:%S').time()
             regular_out_time = datetime.strptime('17:30:00', '%H:%M:%S').time()
             #print('Condition 2') 
     if is_saturday:

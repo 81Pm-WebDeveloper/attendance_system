@@ -4,12 +4,53 @@ from sqlalchemy.orm import Session
 from models.leave_app import Leave
 from models.emp_list import Employee2
 from models.attendance_summary import Summary
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy import or_,desc,and_
 from sqlalchemy.sql import func
 import calendar 
-from datetime import datetime, timedelta
-import services.summary_service as summaryService
+import hashlib
+import random
+
+def reward_leave(db: Session, data):
+    
+    if datetime.strptime(data.date, "%Y-%m-%d").weekday() != 5:  # Ensure it's Saturday (5)
+        return {'Message': 'Error: The date must be a Saturday'}
+    
+    emp = db.query(Employee2.username, Employee2.emp_head).filter(Employee2.empID == data.employee_id).first()
+    
+
+    if not emp:
+        return {'Message': 'Employee not found'}
+
+
+    temp_code = hashlib.md5(f"{random.randint(1000, 9999999999)}-{datetime.now().strftime('%Y%m%d%H%M%S')}".encode()).hexdigest()
+
+    leave_reason = ",".join(map(str, data.vouchers)) 
+    
+    leave_form = Leave(
+        temp_code=temp_code,
+        emp_username=emp.username,
+        leave_start=data.date,
+        leave_end=data.date,
+        start_day_type="Whole Day",
+        end_day_type="Whole Day",
+        leave_type="Perfect Attendance Reward Saturday Off",
+        leave_pay="Paid",
+        leave_reason=leave_reason,
+        approved_by='',  #DB ERROR
+        approved_at='0000-00-00 00:00:00',
+        leave_attach='',#DB ERROR
+        leave_approver=emp.emp_head,
+        created_by=emp.username,
+        created_at= datetime.now()
+    )
+
+    db.add(leave_form)
+    db.commit()
+    db.refresh(leave_form)  # Refresh the inserted object
+
+    return {'Message': 'Success'}
+
 
 def update_summaries(db1: Session, db2: Session, start_date: date =None, end_date: date = None):
     updated_summaries = []
@@ -106,7 +147,8 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
         db.query(
             Leave.leave_type,
             Leave.leave_start,
-            Leave.leave_end
+            Leave.leave_end,
+            Leave.leave_pay
         )
         .filter(
             Leave.emp_username == emp.username,
@@ -144,9 +186,14 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                     "Solo Parent Leave": 0,
                     "Other Leave": 0
                 }
+            if record.leave_pay == 'Paid':
+                leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave"] else (
+                    record.leave_type if record.leave_type in ['Paternity Maternity Leave', 'Solo Parent Leave', 'Emergency Leave', 'Special Leave']
+                    else "Other Leave"
+                )
 
-            leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave", "Solo Parent Leave"] else "Other Leave"
-            result[year_month][leave_type] += 1
+                result[year_month][leave_type] += 1
+
 
             current_date += timedelta(days=1)
 
