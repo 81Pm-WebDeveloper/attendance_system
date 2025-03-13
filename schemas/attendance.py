@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional,List
 
 
 class AttendanceBase(BaseModel):
@@ -25,3 +25,9 @@ class AttendanceToday(BaseModel):
 class VoucherUseRequest(BaseModel):
     voucher_id: int
     att_id: int
+
+class Parso(BaseModel):
+    employee_id: int
+    date: str
+    vouchers: List[int]
+    
