@@ -1,24 +1,23 @@
 from datetime import datetime, date, timedelta
-from models.attendance import Attendance  
-from sqlalchemy.orm import sessionmaker
-from zk import ZK
-from dotenv import load_dotenv
-from db.database import engine
-from fastapi import HTTPException
-from db.database import get_db
-from db.database2 import get_db2
-from sqlalchemy.orm import Session
-import os
-import services.summary_service as summaryService
-import services.attendance_service as attendanceService
-from sqlalchemy import tuple_
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.dialects.mysql import insert
-# Initialize DB session
 import time
-
 import requests
 import json
+from zk import ZK
+from dotenv import load_dotenv
+import os
+#from models.attendance import Attendance  
+#from sqlalchemy.orm import sessionmaker
+#from db.database import engine
+#from fastapi import HTTPException
+#from db.database import get_db
+#from db.database2 import get_db2
+#from sqlalchemy.orm import Session
+#import services.summary_service as summaryService
+#import services.attendance_service as attendanceService
+#from sqlalchemy import tuple_
+#from sqlalchemy.exc import IntegrityError
+#from sqlalchemy.dialects.mysql import insert
+# Initialize DB session
 
 #-----------------------------------------------------------
 
@@ -178,8 +177,6 @@ def prepare_employee_logs(employee_logs):
     }
     return formatted_logs
 #-----------------------------------------------------------
-import requests
-import json
 
 def insert_attendance(data):
     url = os.getenv('api-url')
@@ -212,7 +209,7 @@ def connect_to_device(ip, port):
         return conn
     except Exception as e:
         raise Exception(f"Unable to connect to device: {e}")
-#-----------------------------------------------------------
+#----------------------------------------------------------
 
 
 if __name__ == "__main__":

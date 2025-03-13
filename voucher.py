@@ -12,7 +12,7 @@ Session = SessionLocal()
 
 def get_last_week_range():
     today = datetime.today()
-    last_week_monday = today - timedelta(days=today.weekday() + 7)
+    last_week_monday = today - timedelta(days=today.weekday() + 7) #0-6 => mon - sun
     last_week_saturday = last_week_monday + timedelta(days=5)
     
     return last_week_monday.date(), last_week_saturday.date()
@@ -41,16 +41,15 @@ def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
         .filter(
             or_(
                 and_(
-                    Summary.status == "On time",
+                    Summary.status in ["On time","Official Business"],
                     or_(
                         Summary.checkout_status == "On time",
                         Summary.checkout_status.is_(None),
-                        Summary.checkout_status == "Official Business"
                     )
                 ),
                 and_(
                     Summary.status == "On leave",
-                    Summary.checkout_status.in_(["Official Business", "PARSO"])
+                    Summary.checkout_status.in_(["PARSO"])
                 )
             )
         )
