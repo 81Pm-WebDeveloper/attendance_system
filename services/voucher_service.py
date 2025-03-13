@@ -59,13 +59,13 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
             Vouchers.id == voucher_id,
             Attendance.date <= Vouchers.expiry_date
         ).first()
-    if attendance.voucher_id:
-        raise HTTPException(status_code=404, detail="Voucher already applied")
+
     if not result:
         raise HTTPException(status_code=404, detail="Invalid att_id or voucher_id")
 
     attendance, voucher = result 
-
+    if attendance.voucher_id:
+        raise HTTPException(status_code=404, detail="Voucher already applied")
 
     if attendance.date.weekday() != 5:
         raise HTTPException(status_code=403, detail="Voucher can only be used on a Saturday.")

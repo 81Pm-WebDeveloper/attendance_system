@@ -117,10 +117,17 @@ def fetch_summary(
 
     status_counts = (
         base_query
-        .with_entities(Summary.status, func.count(Summary.status))
-        .group_by(Summary.status)
+        .with_entities(
+            case(
+                (Summary.status == "Official Business", "On time"),
+                else_=Summary.status
+            ).label("adjusted_status"),
+            func.count(Summary.status)
+        )
+        .group_by("adjusted_status")
         .all()
     )
+
     status_summary = {status: count for status, count in status_counts}
 
     if page_size:
@@ -240,7 +247,9 @@ def fetch_count(
             employee_summary[employee_key]["employee_position"] = employee.employee_position
             employee_summary[employee_key]["employee_company"] = employee.employee_company
             employee_summary[employee_key]["employee_branch"] = employee.employee_branch
-            employee_summary[employee_key]["status_counts"][summary.status] += 1
+            status_key = "On time" if summary.status == "Official Business" else summary.status
+            employee_summary[employee_key]["status_counts"][status_key] += 1
+
 
     final_results = [
         {
@@ -257,10 +266,17 @@ def fetch_count(
     # Fetch the status counts from db1 for the Summary table
     status_counts = (
         base_query
-        .with_entities(Summary.status, func.count(Summary.status))
-        .group_by(Summary.status)
+        .with_entities(
+            case(
+                (Summary.status == "Official Business", "On time"),
+                else_=Summary.status
+            ).label("adjusted_status"),
+            func.count(Summary.status)
+        )
+        .group_by("adjusted_status")
         .all()
     )
+
     status_summary = {status: count for status, count in status_counts}
 
     return {
