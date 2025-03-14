@@ -10,3 +10,6 @@ class InsertSummary(BaseModel):
     class Config:
         from_attributes = True
 
+class parsoVouchers(BaseModel):
+    voucher_ids: list[int]
+    date: str
