@@ -5,7 +5,7 @@ from models.attendance import Attendance
 from datetime import date,datetime
 #from schemas.attendance import VoucherUseRequest
 
-
+from sqlalchemy.exc import SQLAlchemyError
 
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     vouchers = db.query(Vouchers).filter(
@@ -81,7 +81,35 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
 
 
 
+def use_vouchers(db: Session, voucher_ids: list[int], date: str):
+    date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+    if not voucher_ids or not date:
+        raise HTTPException(status_code=400, detail="voucher_ids and date_used are required.")
+    if date_obj.weekday() != 5:
+        raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
+    try:
+        vouchers = db.query(Vouchers).filter(Vouchers.id.in_(voucher_ids)).all()
 
+        if len(vouchers) != len(voucher_ids):
+            raise HTTPException(status_code=404, detail="One or more voucher_ids are invalid")
+
+        for voucher in vouchers:
+            if voucher.date_used:
+                raise HTTPException(status_code=400, detail=f"Voucher {voucher.id} already used")
+
+        for voucher in vouchers:
+            voucher.date_used = date  # Use provided date
+
+        db.commit()
+        return {"success": "Vouchers applied successfully"}
+
+    except HTTPException as e:
+        db.rollback()
+        raise e  
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error. Transaction rolled back.")
 
 
 

@@ -14,14 +14,13 @@ import random
 def reward_leave(db: Session, data):
     
     if datetime.strptime(data.date, "%Y-%m-%d").weekday() != 5:  # Ensure it's Saturday (5)
-        return {'Message': 'Error: The date must be a Saturday'}
+        return {'Message': 'Error: Date must be a Saturday'}
     
     emp = db.query(Employee2.username, Employee2.emp_head).filter(Employee2.empID == data.employee_id).first()
     
 
     if not emp:
         return {'Message': 'Employee not found'}
-
 
     temp_code = hashlib.md5(f"{random.randint(1000, 9999999999)}-{datetime.now().strftime('%Y%m%d%H%M%S')}".encode()).hexdigest()
 

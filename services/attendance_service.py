@@ -299,7 +299,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
    
     today = date.today().strftime('%a').upper()
 
-    excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager','HRdev'}
+    excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager','HRdev','WebDev'}
 
     employees = db2.query(
         Employee2.empID,
@@ -407,7 +407,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
 def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
     today = date.today().strftime('%a').upper()
 
-    excluded_positions = {'System Admin', 'SystemTester', 'Admin', 'CEO', 'Manager'}
+    excluded_positions = {'System Admin', 'SystemTester', 'Admin', 'CEO', 'Manager','WebDev'}
 
     employees = db2.query(
         Employee2.empID,

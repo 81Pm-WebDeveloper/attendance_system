@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
 from schemas.attendance import VoucherUseRequest
+from schemas.voucher import parsoVouchers
 
 router = APIRouter()
-
+@router.put
 @router.get("/", status_code=200, dependencies=[Depends(verify_key)])
 def fetch_vouchers(
     db: Session = Depends(get_db),
@@ -35,5 +36,12 @@ def use_voucher(body: VoucherUseRequest, db: Session = Depends(get_db)):
 def cancel_voucher(body: VoucherUseRequest, db: Session= Depends(get_db)):
     try:
         return voucherService.cancel_voucher(db,body.voucher_id,body.att_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occured: {e}")
+    
+@router.put("/parso/",status_code=200, dependencies=[Depends(verify_key)])
+def use_parso(body: parsoVouchers, db: Session= Depends(get_db)):
+    try:
+        return voucherService.use_vouchers(db,body.voucher_ids, body.date)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
