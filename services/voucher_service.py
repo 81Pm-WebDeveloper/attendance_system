@@ -8,6 +8,9 @@ from datetime import date,datetime
 from sqlalchemy.exc import SQLAlchemyError
 
 def fetch_vouchers(db: Session, employee_id: int, date: date):
+    date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+    if date_obj.weekday() != 5:
+        raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
     vouchers = db.query(Vouchers).filter(
         Vouchers.employee_id == employee_id,
         Vouchers.date_used == None,  
