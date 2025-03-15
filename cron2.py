@@ -151,8 +151,10 @@ def fetch_logs_for_past_days(conn, days):
                 employee_logs[user_id][log_date]["undertime_min"], employee_logs[user_id][log_date]["checkout_status"] = result
             elif result:
                 employee_logs[user_id][log_date]["checkout_status"] = result
+
     dataBody = prepare_employee_logs(employee_logs)
-    #print(employee_logs)
+
+    #print(dataBody)
     try:
         conn.enable_device()
     finally:
@@ -187,11 +189,28 @@ def insert_attendance(data):
     
     try:
         response = requests.post(url, data=json.dumps(data), headers=headers)
-        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
-        return response.json()  # Return the parsed JSON response
+        response.raise_for_status()  
+        return response.json() 
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
+def insert_summary(start_date, end_date):
+    url = os.getenv('api-url-summary')
+    headers = {
+        "Content-Type": "application/json",
+        "API-KEY": os.getenv('api_key')
+    }
+    params = {
+        "start_date": start_date,
+        "end_date": end_date
+    }
+
+    try:
+        response = requests.post(url, headers=headers, params=params)
+        response.raise_for_status()  
+        return response.json() 
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
 
 #-----------------------------------------------------------
 
@@ -217,15 +236,20 @@ if __name__ == "__main__":
     device_ip = os.getenv("device_ip_oc")
     port = int(os.getenv("device_port_oc"))
     start_time = time.time()
-    days = 2
+    days = 1
     today = date.today()
     start_date = today - timedelta(days=days)
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    
+    end_date_str = today.strftime('%Y-%m-%d')
     
     try:
         conn = connect_to_device(device_ip, port)
+
         fetch_logs_for_past_days(conn, days)
-        #insert_summary(db,db2,start_date = start_date, end_date=today)
-        #insert_summary_today(db,db2,start_date=today,end_date=today)
+
+        insert_summary(start_date,today)
+       
         
     except Exception as e:
         print(f"Error: {e}")

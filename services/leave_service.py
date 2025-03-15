@@ -12,9 +12,10 @@ import hashlib
 import random
 
 def reward_leave(db: Session, data):
-    
+    if len(data.vouchers) != 4:
+        raise HTTPException(status_code=403, detail="Not enough vouchers/System error: Try Again!")
     if datetime.strptime(data.date, "%Y-%m-%d").weekday() != 5:  # Ensure it's Saturday (5)
-        return {'Message': 'Error: Date must be a Saturday'}
+        raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
     
     emp = db.query(Employee2.username, Employee2.emp_head).filter(Employee2.empID == data.employee_id).first()
     

@@ -38,6 +38,37 @@ def insert_summary(
     except HTTPException as e:
         raise e  
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}, {response}")
+    
+@router.post("/cron/", status_code=200, dependencies=[Depends(verify_key)])
+def insert_summary_cron(
+    db: Session = Depends(get_db),
+    db2: Session = Depends(get_db2),
+    start_date = str,
+    end_date = str 
+    ):
+    try:
+        response = attendanceService.fetch_attendance_cron(db,db2,start_date,end_date) #first loop
+
+        data = [
+            {
+                "employee_id": row["employee_id"],
+                "att_id": row["att_id"],
+                "date": row["date"],
+                "time_in":row["time_in"],
+                "time_out":row["time_out"],
+                "status": row["status"],
+                "checkout_status": row["checkout_status"],
+            }
+            for row in response #loop 2
+        ]
+        
+        entries = summaryService.insert_summary(db, data) # loop 3
+
+        return {"detail": f"Summary logs inserted, {entries}"}
+    except HTTPException as e:
+        raise e  
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 @router.get("/",status_code=200, dependencies=[Depends(verify_key)])  # DONEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
