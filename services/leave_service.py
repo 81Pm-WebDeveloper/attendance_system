@@ -148,7 +148,9 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
             Leave.leave_type,
             Leave.leave_start,
             Leave.leave_end,
-            Leave.leave_pay
+            Leave.leave_pay,
+            Leave.start_day_type,
+            Leave.end_day_type
         )
         .filter(
             Leave.emp_username == emp.username,
@@ -160,6 +162,8 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
     )
 
     result = {}
+    leave_frequency = {}
+
     unique_days = set()
 
     for record in records:
@@ -186,14 +190,28 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                     "Solo Parent Leave": 0,
                     "Other Leave": 0
                 }
+                leave_frequency[year_month] = 0  # Initialize frequency
+
             if record.leave_pay == 'Paid':
-                leave_type = record.leave_type if record.leave_type in ["Vacation Leave", "Sick Leave"] else (
-                    record.leave_type if record.leave_type in ['Paternity Maternity Leave', 'Solo Parent Leave', 'Emergency Leave', 'Special Leave']
-                    else "Other Leave"
-                )
+                if record.leave_type in ["Vacation Leave", "Sick Leave"]:
+                    leave_type = record.leave_type
+                elif record.leave_type in ['Paternity Maternity Leave', 'Solo Parent Leave', 'Emergency Leave', 'Special Leave']:
+                    leave_type = "Other Leave"
+                else:
+                    continue  # Skip leaves not in the list
 
-                result[year_month][leave_type] += 1
+                # Treat all instances as 1 for frequency
+                leave_frequency[year_month] += 1
 
+                # Check if it's a half-day leave
+                if current_date == record.leave_start and record.start_day_type in ["Morning", "Afternoon"]:
+                    leave_count = 0.5
+                elif current_date == record.leave_end and record.end_day_type in ["Morning", "Afternoon"]:
+                    leave_count = 0.5
+                else:
+                    leave_count = 1
+
+                result[year_month][leave_type] += leave_count
 
             current_date += timedelta(days=1)
 
@@ -203,12 +221,11 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
         "leave_data": [
             {
                 "date": month,
-                "results": leaves
+                "results": leaves,
+                "leave_frequency": leave_frequency.get(month, 0)
             }
             for month, leaves in result.items()
         ]
     }
 
     return formatted_result
-
-

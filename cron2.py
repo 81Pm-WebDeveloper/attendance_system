@@ -154,7 +154,7 @@ def fetch_logs_for_past_days(conn, days):
 
     dataBody = prepare_employee_logs(employee_logs)
 
-    #print(dataBody)
+    print(dataBody)
     try:
         conn.enable_device()
     finally:
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     device_ip = os.getenv("device_ip_oc")
     port = int(os.getenv("device_port_oc"))
     start_time = time.time()
-    days = 1
+    days = 2
     today = date.today()
     start_date = today - timedelta(days=days)
     start_date_str = start_date.strftime('%Y-%m-%d')
