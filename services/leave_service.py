@@ -200,10 +200,10 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                 else:
                     continue  # Skip leaves not in the list
 
-                # Treat all instances as 1 for frequency
+               
                 leave_frequency[year_month] += 1
 
-                # Check if it's a half-day leave
+                
                 if current_date == record.leave_start and record.start_day_type in ["Morning", "Afternoon"]:
                     leave_count = 0.5
                 elif current_date == record.leave_end and record.end_day_type in ["Morning", "Afternoon"]:
@@ -221,8 +221,8 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
         "leave_data": [
             {
                 "date": month,
-                "results": leaves,
-                "leave_frequency": leave_frequency.get(month, 0)
+                "results": {**leaves,"leave_frequency": leave_frequency.get(month, 0)}
+                
             }
             for month, leaves in result.items()
         ]
