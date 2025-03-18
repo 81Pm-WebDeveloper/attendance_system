@@ -34,22 +34,23 @@ def check_holiday(db, monday, saturday):
 
 
 def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
-    if(required_days < 5): print('Working holiday > 1'); return
+    if required_days < 5:
+        print('Working holiday > 1')
+        return []
+
     result = (
         db.query(Summary.employee_id)
         .filter(Summary.date.between(start_date, end_date))
         .filter(
-            or_(
-                and_(
-                    Summary.status in ["On time","Official Business"],
-                    or_(
-                        Summary.checkout_status == "On time",
-                        Summary.checkout_status.is_(None),
+            and_(
+                Summary.status.in_(["On time", "Official Business", "PARSO"]),
+                or_(
+                    Summary.checkout_status == "On time",
+                    Summary.checkout_status.is_(None),
+                    and_(
+                        Summary.status == "Official Business",
+                        Summary.checkout_status == "No info"
                     )
-                ),
-                and_(
-                    Summary.status == "On leave",
-                    Summary.checkout_status.in_(["PARSO"])
                 )
             )
         )
@@ -58,7 +59,6 @@ def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
         .all()
     )
 
-    
     return [emp[0] for emp in result]
  
 
