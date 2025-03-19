@@ -111,7 +111,7 @@ def fetch_logs_for_past_days(conn, db, days):
                 "time-in": None, 
                 "time-out": None, 
                 "status": None,
-                "checkout_status": "No info",
+                "checkout_status": None,
                 "late_min": None,
                 "undertime_min": None,
             }

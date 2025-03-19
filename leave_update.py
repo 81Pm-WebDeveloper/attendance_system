@@ -59,7 +59,6 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
                         "employee_id": existing_summary.employee_id,
                         "date": existing_summary.date.strftime("%Y-%m-%d"),
                         "status": existing_summary.status,
-                        "checkout_status": existing_summary.checkout_status
                     })
             current_date += timedelta(days=1)
 
