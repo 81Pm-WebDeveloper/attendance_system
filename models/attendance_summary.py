@@ -10,7 +10,7 @@ class Summary(Base):
     time_in = Column(Time)
     time_out = Column(Time)
     status = Column(String(30), nullable=False) #CONVERT TO ENUM 
-    checkout_status = Column(String(30), nullable=False) #CONVERT TO ENUM 
+    checkout_status = Column(String(30), nullable=True) #CONVERT TO ENUM 
     remarks = Column(Text)
 
     __table_args__ = (
