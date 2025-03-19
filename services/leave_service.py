@@ -198,7 +198,7 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                 elif record.leave_type in ['Paternity Maternity Leave', 'Solo Parent Leave', 'Emergency Leave', 'Special Leave']:
                     leave_type = "Other Leave"
                 else:
-                    continue  # Skip leaves not in the list
+                    continue  
 
                
                 leave_frequency[year_month] += 1
