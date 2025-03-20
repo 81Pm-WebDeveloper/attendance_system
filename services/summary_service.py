@@ -356,7 +356,16 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
                     )
                 ), 0
             ).label("late_no_info_count"),
-            func.coalesce(func.sum(case((Summary.status == 'Half day', 1), else_=0)), 0).label("halfday_count"), #Time in
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Summary.status == 'Half day', 1),  
+                        (Summary.checkout_status == 'Half day', 1), 
+                        else_=0
+                    )
+                ), 
+                0
+            ).label("halfday_count"), #Time in
             func.coalesce(func.sum(case((Summary.status == 'Absent', 1), else_=0)), 0).label("absent_count"),
             func.coalesce(func.sum(case((Summary.checkout_status == 'Undertime', 1), else_=0)), 0).label("undertime_count"),
             func.coalesce(func.sum(case((Summary.checkout_status == 'No info', 1), else_=0)), 0).label("no_checkout"),

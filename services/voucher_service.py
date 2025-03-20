@@ -4,8 +4,64 @@ from models.vouchers import Vouchers
 from models.attendance import Attendance
 from datetime import date,datetime
 #from schemas.attendance import VoucherUseRequest
-
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_,desc,and_,tuple_
+
+
+def fetch_all_vouchers(
+    db: Session,
+    page: int = 1,
+    page_size: int = 10,
+    search_query: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    employee_id_filter: str = None,
+    used_filter: str = 'unused'  
+):
+    query = db.query(Vouchers).order_by(desc(Vouchers.expiry_date))
+
+    if search_query:
+        search_term = f"%{search_query}%"
+        query = query.filter(Vouchers.employee_id.ilike(search_term))
+
+    if date_from and date_to:
+        query = query.filter(Vouchers.issue_date.between(date_from, date_to))
+
+    if employee_id_filter:
+        query = query.filter(Vouchers.employee_id.ilike(f"%{employee_id_filter}%"))
+
+    if used_filter:
+        if used_filter == "used":
+            query = query.filter(Vouchers.date_used.isnot(None))  
+        elif used_filter == "unused":
+            query = query.filter(Vouchers.date_used.is_(None))  
+
+    total_count = query.count()
+
+    if page and page_size:
+        query = query.offset((page - 1) * page_size).limit(page_size)
+
+    vouchers = query.all()
+
+    return {
+        "total": total_count,
+        "page": page,
+        "page_size": page_size,
+        "data": [
+            {
+                "id": v.id,
+                "employee_id": v.employee_id,
+                "issue_date": v.issue_date.strftime("%Y-%m-%d"),
+                "expiry_date": v.expiry_date.strftime("%Y-%m-%d"),
+                "date_used": v.date_used.strftime("%Y-%m-%d") if v.date_used else None
+            }
+            for v in vouchers
+        ]
+    }
+
+
+
+
 
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()

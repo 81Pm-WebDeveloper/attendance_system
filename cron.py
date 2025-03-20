@@ -71,6 +71,7 @@ def time_status(time_in):
     if time_in >= half_day_threshold:
         if time_in <= half_day_base_time:
             return (None, "Half Day")
+        
         late_min = (datetime.combine(datetime.min, time_in) - datetime.combine(datetime.min, half_day_base_time)).seconds // 60
         return (late_min, "Half Day")
 
