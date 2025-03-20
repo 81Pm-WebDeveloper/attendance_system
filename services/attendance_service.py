@@ -403,7 +403,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
 
 #     return result
 
-#faster - enough if (daily trigger)
+#fast enough if (daily trigger)
 def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
     today = date.today().strftime('%a').upper()
 

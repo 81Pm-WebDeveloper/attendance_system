@@ -46,6 +46,7 @@ def get_perfect_attendance(db, start_date: str, end_date: str, required_days):
                 Summary.status.in_(["On time", "Official Business", "PARSO"]),
                 or_(
                     Summary.checkout_status == "On time",
+                    Summary.checkout_status == '',
                     Summary.checkout_status.is_(None),
                     and_(
                         Summary.status == "Official Business",
