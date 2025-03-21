@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import services.voucher_service as voucherService
 from db.database import get_db
+from db.database2 import get_db2
 from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
@@ -12,6 +13,7 @@ router = APIRouter()
 @router.get("/all/",status_code=200,dependencies=[Depends(verify_key)])
 def fetch_all_vouchers(
     db:Session = Depends(get_db),
+    db2:Session = Depends(get_db2),
     page: int =1,
     page_size:int =10,
     search_query: str = None,
@@ -21,10 +23,18 @@ def fetch_all_vouchers(
     used_filter: str = 'unused'  
 ):
     try:
-        result = voucherService.fetch_all_vouchers(db,page,page_size,search_query,date_from,date_to,employee_id_filter,used_filter)
+        result = voucherService.fetch_all_vouchers(db,db2,page,page_size,search_query,date_from,date_to,employee_id_filter,used_filter)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
+    
+@router.get('/unused/',status_code=200, dependencies=[Depends(verify_key)])
+def fetch_unused_vouchers(db:Session =Depends(get_db),db2:Session=Depends(get_db2), username: str = None):
+    try:
+        result = voucherService.fetch_oldest_unused_vouchers(db,db2,username)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
 @router.get("/", status_code=200, dependencies=[Depends(verify_key)])
 def fetch_vouchers(

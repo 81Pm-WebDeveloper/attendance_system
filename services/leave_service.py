@@ -70,6 +70,7 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
         Leave.leave_type
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
+        #Leave.leave_pay == "Paid",
         Leave.leave_start <= end_date,
         Leave.leave_end >= start_date
     ).all()
@@ -88,15 +89,16 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
             ).first()
 
             if existing_summary:
-                if existing_summary.status != 'On leave':
+                if existing_summary.status != 'On leave' or 'Official Business':
                     existing_summary.status = 'On leave'
-                    if leave.leave_type == 'Official Business' or 'Perfect Attendance Reward Saturday Off':
-                        existing_summary.checkout_status = 'Official Business'
+                    if leave.leave_type == 'Official Business':
+                        existing_summary.status = 'Official Business'
+                    if leave.leave_type == 'Perfect Attendance Reward Saturday Off':
+                        existing_summary.status = 'PARSO'
                     updated_summaries.append({
                         "employee_id": existing_summary.employee_id,
                         "date": existing_summary.date.strftime("%Y-%m-%d"),
                         "status": existing_summary.status,
-                        "checkout_status": existing_summary.checkout_status
                     })
             current_date += timedelta(days=1)
 
@@ -113,9 +115,11 @@ def get_leaves(db: Session,check_date: date = None):
         Leave.leave_start,
         Leave.leave_end,
         Leave.leave_reason,
-        Leave.leave_type
+        Leave.leave_type,
+        Leave.leave_pay
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
+        #Leave.leave_pay =='Paid',
         Leave.leave_start <= check_date,  
         Leave.leave_end >= check_date     
     ).all()  
@@ -123,6 +127,7 @@ def get_leaves(db: Session,check_date: date = None):
     response = [
         {
             'employee_id': row.empID,
+            'leave_pay': row.leave_pay,
             'leave_start': row.leave_start,
             'leave_end': row.leave_end,
             'reason': row.leave_reason,
@@ -188,7 +193,8 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                     "Vacation Leave": 0,
                     "Sick Leave": 0,
                     "Solo Parent Leave": 0,
-                    "Other Leave": 0
+                    "Other Leave": 0,
+                    "Unpaid Leave": 0,
                 }
                 leave_frequency[year_month] = 0  # Initialize frequency
 
@@ -199,19 +205,20 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                     leave_type = "Other Leave"
                 else:
                     continue  
-
+            else:
+                leave_type = "Unpaid Leave"
                
-                leave_frequency[year_month] += 1
+            leave_frequency[year_month] += 1
 
                 
-                if current_date == record.leave_start and record.start_day_type in ["Morning", "Afternoon"]:
+            if current_date == record.leave_start and record.start_day_type in ["Morning", "Afternoon"]:
                     leave_count = 0.5
-                elif current_date == record.leave_end and record.end_day_type in ["Morning", "Afternoon"]:
+            elif current_date == record.leave_end and record.end_day_type in ["Morning", "Afternoon"]:
                     leave_count = 0.5
-                else:
+            else:
                     leave_count = 1
 
-                result[year_month][leave_type] += leave_count
+            result[year_month][leave_type] += leave_count
 
             current_date += timedelta(days=1)
 

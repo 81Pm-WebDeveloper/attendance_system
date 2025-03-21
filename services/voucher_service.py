@@ -2,21 +2,22 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.vouchers import Vouchers
 from models.attendance import Attendance
+from models.emp_list import Employee2
 from datetime import date,datetime
 #from schemas.attendance import VoucherUseRequest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
 
-
 def fetch_all_vouchers(
     db: Session,
+    db2: Session,
     page: int = 1,
     page_size: int = 10,
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None,
-    used_filter: str = 'unused'  
+    used_filter: str = 'unused'
 ):
     query = db.query(Vouchers).order_by(desc(Vouchers.expiry_date))
 
@@ -32,9 +33,9 @@ def fetch_all_vouchers(
 
     if used_filter:
         if used_filter == "used":
-            query = query.filter(Vouchers.date_used.isnot(None))  
+            query = query.filter(Vouchers.date_used.isnot(None))
         elif used_filter == "unused":
-            query = query.filter(Vouchers.date_used.is_(None))  
+            query = query.filter(Vouchers.date_used.is_(None))
 
     total_count = query.count()
 
@@ -43,6 +44,11 @@ def fetch_all_vouchers(
 
     vouchers = query.all()
 
+    
+    emp_ids = {v.employee_id for v in vouchers}  
+    emp_query = db2.query(Employee2.empID, Employee2.fullname).filter(Employee2.empID.in_(emp_ids)).all()
+    emp_dict = {emp.empID: emp.fullname for emp in emp_query}  
+
     return {
         "total": total_count,
         "page": page,
@@ -50,10 +56,48 @@ def fetch_all_vouchers(
         "data": [
             {
                 "id": v.id,
-                "employee_id": v.employee_id,
+                "employee_id":v.employee_id,
+                "employee_name": emp_dict.get(v.employee_id, "Unknown"), 
                 "issue_date": v.issue_date.strftime("%Y-%m-%d"),
                 "expiry_date": v.expiry_date.strftime("%Y-%m-%d"),
                 "date_used": v.date_used.strftime("%Y-%m-%d") if v.date_used else None
+            }
+            for v in vouchers
+        ]
+    }
+
+
+#for Voucher Application by Head/Manager
+def fetch_oldest_unused_vouchers(db: Session, db2: Session, username: str):
+    if username is None:
+        return {'Error'}
+    emp_query = db2.query(Employee2.empID, Employee2.fullname).filter(Employee2.emp_head.contains(username)).all()
+    emp_dict = {emp.empID: emp.fullname for emp in emp_query}  
+
+    if not emp_dict:
+        return {"total": 0, "data": []}
+
+    vouchers = []
+    for emp_id in emp_dict.keys():
+        voucher = (
+            db.query(Vouchers)
+            .filter(Vouchers.employee_id == emp_id, Vouchers.date_used.is_(None))
+            .order_by(Vouchers.issue_date)
+            .first()
+        )
+        if voucher:
+            vouchers.append(voucher)
+
+    return {
+        "total": len(vouchers),
+        "data": [
+            {
+                "id": v.id,
+                "employee_id": v.employee_id,
+                "employee_name": emp_dict[v.employee_id], 
+                "issue_date": v.issue_date.strftime("%Y-%m-%d"),
+                "expiry_date": v.expiry_date.strftime("%Y-%m-%d"),
+                "date_used": None
             }
             for v in vouchers
         ]
