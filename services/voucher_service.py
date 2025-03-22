@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from models.vouchers import Vouchers
 from models.attendance import Attendance
 from models.emp_list import Employee2
-from datetime import date,datetime
+from datetime import date,datetime,timedelta
 #from schemas.attendance import VoucherUseRequest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
@@ -181,6 +181,22 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
 
     db.commit()
     return {"success": "Voucher applied successfully"}
+
+
+
+from datetime import timedelta
+
+def get_voucher_dates(db: Session, voucher_ids: list[int]):
+    results = db.query(Vouchers.id, Vouchers.issue_date).filter(Vouchers.id.in_(voucher_ids)).all()
+
+    voucher_dates = {}
+    for row in results:
+        start_date = (row.issue_date - timedelta(days=5)).strftime('%m-%d')  # "02-17"
+        end_date = row.issue_date.strftime('%m-%d')  # "02-22"
+        voucher_dates[str(row.id)] = f"{start_date} - {end_date}"
+
+    return voucher_dates
+
 
 
 

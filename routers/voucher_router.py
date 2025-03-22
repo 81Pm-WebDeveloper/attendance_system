@@ -8,6 +8,7 @@ import os
 from config.authentication import verify_key
 from schemas.attendance import VoucherUseRequest
 from schemas.voucher import parsoVouchers
+from typing import List
 router = APIRouter()
 
 @router.get("/all/",status_code=200,dependencies=[Depends(verify_key)])
@@ -51,6 +52,16 @@ def fetch_vouchers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
     
+
+@router.post("/perfect-attendance/", status_code=200, dependencies=[Depends(verify_key)])
+def perfect_attendance_dates(voucher_ids: List[int], db: Session = Depends(get_db)):
+    if not voucher_ids:
+        raise HTTPException(status_code=400, detail="voucher_ids are required.")
+    
+    return voucherService.get_voucher_dates(db, voucher_ids)
+
+
+
 @router.put("/",status_code=200, dependencies=[Depends(verify_key)])
 def use_voucher(body: VoucherUseRequest, db: Session = Depends(get_db)):
     try:
