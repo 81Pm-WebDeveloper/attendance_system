@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
 from schemas.attendance import VoucherUseRequest
-from schemas.voucher import parsoVouchers
+from schemas.voucher import parsoVouchers, VoucherUpdateRequest
 from typing import List
 router = APIRouter()
 
@@ -29,10 +29,10 @@ def fetch_all_vouchers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
     
-@router.get('/unused/',status_code=200, dependencies=[Depends(verify_key)])
-def fetch_unused_vouchers(db:Session =Depends(get_db),db2:Session=Depends(get_db2), username: str = None):
+@router.get('/eligible-employees/',status_code=200, dependencies=[Depends(verify_key)])
+def fetch_eligible_emp(db:Session =Depends(get_db),db2:Session=Depends(get_db2), department: str = None):
     try:
-        result = voucherService.fetch_oldest_unused_vouchers(db,db2,username)
+        result = voucherService.fetch_attendance_vouchers(db,db2,department)
         return result
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
@@ -60,8 +60,6 @@ def perfect_attendance_dates(voucher_ids: List[int], db: Session = Depends(get_d
     
     return voucherService.get_voucher_dates(db, voucher_ids)
 
-
-
 @router.put("/",status_code=200, dependencies=[Depends(verify_key)])
 def use_voucher(body: VoucherUseRequest, db: Session = Depends(get_db)):
     try:
@@ -82,3 +80,10 @@ def use_parso(body: parsoVouchers, db: Session= Depends(get_db)):
         return voucherService.use_vouchers(db,body.voucher_ids, body.date)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
+
+@router.put("/multiple-vouchers/",status_code=200, dependencies=[Depends(verify_key)])
+def use_multiple_voucher(body:VoucherUpdateRequest,db:Session = Depends(get_db)):
+    try:
+        return voucherService.use_multiple_vouchers(db,body)
+    except Exception as e:
+        raise HTTPException(status_code=500, details=f"An error occured: {e}")

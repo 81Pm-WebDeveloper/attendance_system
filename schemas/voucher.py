@@ -13,3 +13,11 @@ class InsertSummary(BaseModel):
 class parsoVouchers(BaseModel):
     voucher_ids: list[int]
     date: str
+
+
+class VoucherUpdateItem(BaseModel):
+    attendance_id: int
+    voucher_id: int
+
+class VoucherUpdateRequest(BaseModel):
+    updates: list[VoucherUpdateItem]

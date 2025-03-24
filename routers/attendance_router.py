@@ -12,6 +12,9 @@ load_dotenv()
 
 @router.post("/", status_code=200, dependencies=[Depends(verify_key)])
 def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
+    """
+    Insert attendance route
+    """
     if not data:
         raise HTTPException(status_code=400, detail="No attendance data provided.")
     
@@ -22,7 +25,11 @@ def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/check-voucher/",status_code=200, dependencies=[Depends(verify_key)])
+
 def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
+    """
+    Voucher checker for One Central
+    """
     try:
         response = attendanceService.check_voucher(db,body.employee_id,body.date)
         return response
@@ -62,12 +69,6 @@ def get_attendance(
     db: Session = Depends(get_db)
 ):
     return attendanceService.fetch_attendance(db, page, page_size, search_query,date_from,date_to,status_filter,employee_id_filter)
-    
-@router.get("/today/",dependencies=[Depends(verify_key)])
-def get_attendance_today(db: Session = Depends(get_db)):
-    try:
-        return attendanceService.fetch_attendance_today(db)
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
+
     
    
