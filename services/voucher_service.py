@@ -8,6 +8,8 @@ from datetime import date,datetime,timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
 
+
+#VOUCHER DISPLAY FOR HR
 def fetch_all_vouchers(
     db: Session,
     db2: Session,
@@ -66,47 +68,53 @@ def fetch_all_vouchers(
         ]
     }
 
-
-#for Voucher Application by Head/Manager
-def fetch_oldest_unused_vouchers(db: Session, db2: Session, username: str):
-    if username is None:
-        return {'Error'}
-    emp_query = db2.query(Employee2.empID, Employee2.fullname).filter(Employee2.emp_head.contains(username)).all()
-    emp_dict = {emp.empID: emp.fullname for emp in emp_query}  
+#DISPLAY EMPLOYEE WITH AVAILABLE VOUCHERS => GETS OLDEST VOUCHER
+def fetch_attendance_vouchers(db: Session, db2: Session, department: str):
+    today = date.today()
+    if today.weekday() != 0:
+        return {"error": f"Vouchers can only be used on Saturdays"}  
+    if not department:
+        return {"error": "Department is required"}
+    
+    emp_query = db2.query(Employee2.empID, Employee2.fullname).filter(Employee2.department == department).all()
+    emp_dict = {emp.empID: emp.fullname for emp in emp_query}
 
     if not emp_dict:
         return {"total": 0, "data": []}
-
+    
     vouchers = []
-    for emp_id in emp_dict.keys():
+    for emp_id, fullname in emp_dict.items():
         voucher = (
-            db.query(Vouchers)
-            .filter(Vouchers.employee_id == emp_id, Vouchers.date_used.is_(None))
+            db.query(
+                Vouchers.id, Vouchers.employee_id, Vouchers.expiry_date, 
+                Attendance.id.label("attendance_id"), Attendance.time_in, Attendance.status
+            )
+            .join(Attendance, Attendance.employee_id == Vouchers.employee_id)  
+            .filter(
+                Vouchers.employee_id == emp_id, 
+                Vouchers.date_used.is_(None), 
+                Attendance.date == today,
+                Attendance.status == 'On time'
+            )
             .order_by(Vouchers.issue_date)
             .first()
         )
+
         if voucher:
-            vouchers.append(voucher)
+            vouchers.append({
+                "voucher_id": voucher.id,
+                "employee_id": voucher.employee_id,
+                "employee_name": fullname,
+                "expiry_date": voucher.expiry_date.strftime("%Y-%m-%d"),
+                "attendance_id": voucher.attendance_id,
+                "time_in": voucher.time_in.strftime("%H:%M:%S") if voucher.time_in else None,
+                "status": voucher.status
+            })
 
-    return {
-        "total": len(vouchers),
-        "data": [
-            {
-                "id": v.id,
-                "employee_id": v.employee_id,
-                "employee_name": emp_dict[v.employee_id], 
-                "issue_date": v.issue_date.strftime("%Y-%m-%d"),
-                "expiry_date": v.expiry_date.strftime("%Y-%m-%d"),
-                "date_used": None
-            }
-            for v in vouchers
-        ]
-    }
+    return {"total": len(vouchers), "data": vouchers}
 
 
-
-
-
+#DISPLAY VOUCHERS FOR EMPLOYEEs
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
     if date_obj.weekday() != 5:
@@ -118,6 +126,7 @@ def fetch_vouchers(db: Session, employee_id: int, date: date):
     ).all()
     return vouchers
 
+#VOUCHER CANCEL
 def cancel_voucher(db: Session, voucher_id: int, att_id: int):
     if not voucher_id or not att_id:
         raise HTTPException(status_code=400, detail="voucher_id and att_id are required.")
@@ -149,7 +158,7 @@ def cancel_voucher(db: Session, voucher_id: int, att_id: int):
 
     return {"message": "Voucher successfully canceled"}
 
-
+#VOUCHER USE FOR EMPLOYEEs
 def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
     if not voucher_id or not att_id:
         raise HTTPException(status_code=400, detail="voucher_id and att_id are required.")
@@ -183,7 +192,7 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
     return {"success": "Voucher applied successfully"}
 
 
-
+#FOR PARSO REMARKS
 def get_voucher_dates(db: Session, voucher_ids: list[int]):
     results = db.query(Vouchers.id, Vouchers.issue_date).filter(Vouchers.id.in_(voucher_ids)).all()
 
@@ -195,9 +204,32 @@ def get_voucher_dates(db: Session, voucher_ids: list[int]):
 
     return voucher_dates
 
+#ALLOW HEAD/MANAGER TO APPLY VOUCHERS FOR EMPLOYEEs (CAN ONLY BE USED ON SATURDAYS)
+def use_multiple_vouchers(db: Session, data: dict[int, int]):
+    today = date.today()
+    if today.weekday() != 5:
+        return {"error": f"Vouchers can only be used on Saturdays"}  
+    try:
+        for update in data.updates:
+            att_id = update.attendance_id
+            voucher_id = update.voucher_id
 
+            updated_rows = db.query(Attendance).filter(Attendance.id == att_id).update({"voucher_id": voucher_id})
+            
+            if updated_rows == 0:
+                raise ValueError(f"Attendance ID {att_id} not found")  # Force rollback
+            
+            # Update Vouchers table
+            db.query(Vouchers).filter(Vouchers.id == voucher_id).update({"date_used": today})
 
+        db.commit()
+        return {"success": "Vouchers applied successfully"}
 
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
+#VOID VOUCHERS FOR PARSO
 def use_vouchers(db: Session, voucher_ids: list[int], date: str):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
     if not voucher_ids or not date:

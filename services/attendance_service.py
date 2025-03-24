@@ -12,55 +12,7 @@ from sqlalchemy.dialects.mysql import insert
 from datetime import timedelta
 
 load_dotenv()
-
-def connect_to_device(ip, port=4370):
-    zk = ZK(ip, port=port, timeout=5)
-    try:
-        conn = zk.connect()
-        conn.disable_device()
-        return conn
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unable to connect to device: {e}")
-
-def time_status(time_in):
-    late_threshold = datetime.strptime('09:01:00', '%H:%M:%S').time()
-    half_day_threshold = datetime.strptime('11:00:00', '%H:%M:%S').time()
-
-    if time_in >= half_day_threshold:
-        return "Half Day"
-    elif time_in >= late_threshold:
-        return "Late"
-    else:
-        return "Present"
-
-
-def fetch_logs_for_today(conn, db: Session):
-    today = date.today()
-    logs = conn.get_attendance()
-    employee_logs = {}
-
-    for log in logs:
-        log_date = log.timestamp.date()
-        date_now = datetime.now().date()
-
-        if log_date == date_now:
-            user_id = log.user_id
-            timestamp = str(log.timestamp).split(' ')[1]
-            punch = "time-in" if log.punch == 0 else "time-out"
-
-            if user_id not in employee_logs:
-                employee_logs[user_id] = {"time-in": None, "time-out": None, "status": "Present"}
-
-            if punch == "time-in" and employee_logs[user_id]["time-in"] is None:
-                time_in = datetime.strptime(timestamp, '%H:%M:%S').time()
-                employee_logs[user_id]["time-in"] = timestamp
-                employee_logs[user_id]["status"] = time_status(time_in)
-            elif punch == "time-out":
-                employee_logs[user_id]["time-out"] = timestamp
-
-    logs_today = batch_insert_update_logs(db, today, employee_logs)
-    return logs_today
-
+               
 
 ## NEW
 def batch_insert_update_logs(db:Session, employee_logs):
@@ -209,45 +161,6 @@ def fetch_attendance(
         }
 
     return response
-
-def fetch_attendance_today(db: Session):
-    results = (
-        db.query(
-            Employee2.empID, #empID
-            Employee2.fullname, #fullname
-            Employee2.company, #Company 
-            Employee2.position, #position 
-            Employee2.branch, #branch
-            func.coalesce(Attendance.status, "No info").label("status"),
-            Attendance.time_in,
-            Attendance.time_out
-        )
-        .join(
-            Attendance,
-            (Employee2.empID == Attendance.employee_id) & 
-            (Attendance.date == date.today()),
-            isouter=True, # OUTERRRR JOINNNNNNNNNNN
-        )
-        .order_by(Employee2.department.asc())
-        .all()
-    )
-    response = [
-        {
-            "employee_id": row.empID,
-            "name": row.fullname,
-            "department": row.company,
-            "position": row.position,
-            "date": date.today(),
-            "time_in": row.time_in,
-            "time_out": row.time_out,
-            "status": row.status,
-        }
-        for row in results
-    ]
-
-    return response
-
-
 
 
 # def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
