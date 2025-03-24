@@ -40,7 +40,7 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
             regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
             
         else:
-            regular_out_time = datetime.strptime('15:00:00', '%H:%M:%S').time()
+            regular_out_time = datetime.strptime('17:00:00', '%H:%M:%S').time()
             
         #print('Saturday')
 
@@ -141,14 +141,18 @@ def fetch_logs_for_past_days(conn, db, days):
 
             is_friday = log_date.strftime("%A") == "Friday"
             is_saturday = log_date.strftime("%A") == "Saturday"
+            is_voucher = False
 
-            voucher = db.query(Attendance.voucher_id).filter(
-                Attendance.employee_id == user_id,
-                Attendance.date == log_date
-            ).first()
+            if(is_saturday and time_out < datetime.strptime('17:00:00', '%H:%M:%S').time()):
 
-            is_voucher = bool(voucher and voucher[0])
-            
+                voucher = db.query(Attendance.voucher_id).filter(
+                    Attendance.employee_id == user_id,
+                    Attendance.date == log_date
+                ).first()
+                is_voucher = bool(voucher and voucher[0])
+            if(is_voucher):
+                print(f"{is_voucher}, {user_id}, {log_date}")
+                
             result = timeout_status(time_in, time_out, is_friday, is_saturday, is_voucher)
 
             if isinstance(result, tuple):

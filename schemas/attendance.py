@@ -22,6 +22,10 @@ class AttendanceToday(BaseModel):
     position: str
     status: str
 
+class CheckVoucher(BaseModel):
+    employee_id: int
+    date: str
+
 class VoucherUseRequest(BaseModel):
     voucher_id: int
     att_id: int

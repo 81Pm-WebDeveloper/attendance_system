@@ -404,6 +404,14 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
 #     return result
 
 #fast enough if (daily trigger)
+
+def check_voucher(db: Session, user_id: int, log_date: date):
+    return bool(db.query(Attendance.voucher_id)
+                   .filter(Attendance.employee_id == user_id, 
+                           Attendance.date == log_date)
+                   .first()[0] or False)
+
+
 def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
     today = date.today().strftime('%a').upper()
 
