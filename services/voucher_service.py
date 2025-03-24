@@ -184,8 +184,6 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
 
 
 
-from datetime import timedelta
-
 def get_voucher_dates(db: Session, voucher_ids: list[int]):
     results = db.query(Vouchers.id, Vouchers.issue_date).filter(Vouchers.id.in_(voucher_ids)).all()
 

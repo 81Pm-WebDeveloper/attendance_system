@@ -5,6 +5,7 @@ from db.database import get_db
 from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
+from schemas.attendance import CheckVoucher
 
 router = APIRouter()
 load_dotenv()
@@ -20,7 +21,13 @@ def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
+@router.post("/check-voucher/",status_code=200, dependencies=[Depends(verify_key)])
+def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
+    try:
+        response = attendanceService.check_voucher(db,body.employee_id,body.date)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, details=f"Internal server error: {str(e)}")
 
 #LOCAL
 # @router.post("/",status_code=200, dependencies=[Depends(verify_key)])
@@ -64,4 +71,3 @@ def get_attendance_today(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
     
    
- 
