@@ -29,13 +29,15 @@ def fetch_all_vouchers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
     
-@router.get('/eligible-employees/',status_code=200, dependencies=[Depends(verify_key)])
-def fetch_eligible_emp(db:Session =Depends(get_db),db2:Session=Depends(get_db2), department: str = None):
+
+@router.post('/eligible-employees/', status_code=200, dependencies=[Depends(verify_key)])
+def fetch_eligible_emp(db: Session = Depends(get_db), db2: Session = Depends(get_db2), departments: List[str] = None,username:str= None):
     try:
-        result = voucherService.fetch_attendance_vouchers(db,db2,department)
+        result = voucherService.fetch_attendance_vouchers(db, db2, departments,username)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
 
 @router.get("/", status_code=200, dependencies=[Depends(verify_key)])
 def fetch_vouchers(
@@ -81,9 +83,9 @@ def use_parso(body: parsoVouchers, db: Session= Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occured: {e}")
 
-@router.put("/multiple-vouchers/",status_code=200, dependencies=[Depends(verify_key)])
+@router.put("/multiple/",status_code=200, dependencies=[Depends(verify_key)])
 def use_multiple_voucher(body:VoucherUpdateRequest,db:Session = Depends(get_db)):
     try:
         return voucherService.use_multiple_vouchers(db,body)
     except Exception as e:
-        raise HTTPException(status_code=500, details=f"An error occured: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occured: {e}")

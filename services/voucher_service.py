@@ -8,6 +8,7 @@ from datetime import date,datetime,timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
 
+voucher_day = 5
 
 #VOUCHER DISPLAY FOR HR
 def fetch_all_vouchers(
@@ -69,18 +70,24 @@ def fetch_all_vouchers(
     }
 
 #DISPLAY EMPLOYEE WITH AVAILABLE VOUCHERS => GETS OLDEST VOUCHER
-def fetch_attendance_vouchers(db: Session, db2: Session, department: str):
+def fetch_attendance_vouchers(db: Session, db2: Session, departments: list[str],username:str):
     today = date.today()
-    if today.weekday() != 0:
+    if today.weekday() != voucher_day:
         return {"error": f"Vouchers can only be used on Saturdays"}  
-    if not department:
+    if not departments:
         return {"error": "Department is required"}
+    branch = db2.query(Employee2.branch).filter(Employee2.username == username).scalar()
+
+    emp_query = db2.query(
+        Employee2.empID, Employee2.fullname
+        ).filter(Employee2.department.in_(departments)).filter(
+        Employee2.branch == branch
+        ).all()
     
-    emp_query = db2.query(Employee2.empID, Employee2.fullname).filter(Employee2.department == department).all()
     emp_dict = {emp.empID: emp.fullname for emp in emp_query}
 
     if not emp_dict:
-        return {"total": 0, "data": []}
+        return {"empty": 0, "data": []}
     
     vouchers = []
     for emp_id, fullname in emp_dict.items():
@@ -91,9 +98,11 @@ def fetch_attendance_vouchers(db: Session, db2: Session, department: str):
             )
             .join(Attendance, Attendance.employee_id == Vouchers.employee_id)  
             .filter(
-                Vouchers.employee_id == emp_id, 
+                Vouchers.employee_id == emp_id,
+                Vouchers.expiry_date >= today, 
                 Vouchers.date_used.is_(None), 
                 Attendance.date == today,
+                Attendance.voucher_id.is_(None),
                 Attendance.status == 'On time'
             )
             .order_by(Vouchers.issue_date)
@@ -117,7 +126,7 @@ def fetch_attendance_vouchers(db: Session, db2: Session, department: str):
 #DISPLAY VOUCHERS FOR EMPLOYEEs
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
-    if date_obj.weekday() != 5:
+    if date_obj.weekday() != voucher_day:
         raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
     vouchers = db.query(Vouchers).filter(
         Vouchers.employee_id == employee_id,
@@ -145,7 +154,7 @@ def cancel_voucher(db: Session, voucher_id: int, att_id: int):
 
     attendance, voucher = result
 
-    if attendance.time_out < datetime.strptime('17:00:00', '%H:%M:%S').time() or attendance.date.weekday() != 5:
+    if attendance.time_out < datetime.strptime('17:00:00', '%H:%M:%S').time() or attendance.date.weekday() != voucher_day:
         raise HTTPException(status_code=400, detail="Invalid")
 
     try:
@@ -179,7 +188,7 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
     if attendance.voucher_id:
         raise HTTPException(status_code=404, detail="Voucher already applied")
 
-    if attendance.date.weekday() != 5:
+    if attendance.date.weekday() != voucher_day:
         raise HTTPException(status_code=403, detail="Voucher can only be used on a Saturday.")
 
     if attendance.status != 'On time':
@@ -207,8 +216,8 @@ def get_voucher_dates(db: Session, voucher_ids: list[int]):
 #ALLOW HEAD/MANAGER TO APPLY VOUCHERS FOR EMPLOYEEs (CAN ONLY BE USED ON SATURDAYS)
 def use_multiple_vouchers(db: Session, data: dict[int, int]):
     today = date.today()
-    if today.weekday() != 5:
-        return {"error": f"Vouchers can only be used on Saturdays"}  
+    if today.weekday() != voucher_day:
+        raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
     try:
         for update in data.updates:
             att_id = update.attendance_id
@@ -217,9 +226,9 @@ def use_multiple_vouchers(db: Session, data: dict[int, int]):
             updated_rows = db.query(Attendance).filter(Attendance.id == att_id).update({"voucher_id": voucher_id})
             
             if updated_rows == 0:
-                raise ValueError(f"Attendance ID {att_id} not found")  # Force rollback
+                raise ValueError(f"Attendance ID {att_id} not found")  
             
-            # Update Vouchers table
+            
             db.query(Vouchers).filter(Vouchers.id == voucher_id).update({"date_used": today})
 
         db.commit()
@@ -234,7 +243,7 @@ def use_vouchers(db: Session, voucher_ids: list[int], date: str):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
     if not voucher_ids or not date:
         raise HTTPException(status_code=400, detail="voucher_ids and date_used are required.")
-    if date_obj.weekday() != 5:
+    if date_obj.weekday() != voucher_day:
         raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
     try:
         vouchers = db.query(Vouchers).filter(Vouchers.id.in_(voucher_ids)).all()
