@@ -215,7 +215,7 @@ def batch_insert_update_logs(db, employee_logs):
     
     try:
         if inserts:
-            for batch in chunks(inserts, 1000): 
+            for batch in chunks(inserts,100): 
                 stmt = insert(Attendance).values(batch)
                 update_dict = {
                     'time_out': stmt.inserted.time_out,
