@@ -129,7 +129,7 @@ def fetch_summary(
     )
 
     status_summary = {status: count for status, count in status_counts}
-
+    
     if page_size:
         result = (
             base_query.order_by(Summary.date.desc())
@@ -263,7 +263,6 @@ def fetch_count(
         for data in employee_summary.values()
     ]
 
-    # Fetch the status counts from db1 for the Summary table
     status_counts = (
         base_query
         .with_entities(
@@ -326,7 +325,7 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             func.coalesce(
                 func.sum(
                     case(
-                        (Summary.status.notin_(['On time', 'On leave']), Attendance.late_min),
+                        (Summary.status.notin_(['On time', 'On leave','Official Business']), Attendance.late_min),
                         else_=0
                     )
                 ), 0
@@ -334,9 +333,9 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
             func.coalesce(
                 func.sum(
                     case(
-                        (or_(
-                            Summary.checkout_status.notin_(['On time', 'Official Business']),
-                            Summary.status.notin_(['On leave', 'Official Business'])
+                        (and_(
+                            Summary.status.notin_(['On leave', 'Official Business']), 
+                            Summary.checkout_status.notin_(['On time', 'Official Business'])  
                         ), Attendance.undertime_min),
                         else_=0
                     )
