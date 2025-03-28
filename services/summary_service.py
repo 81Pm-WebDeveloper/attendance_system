@@ -369,7 +369,23 @@ def attendanceReport(db: Session, start_date: datetime, end_date: datetime, empl
                 0
             ).label("halfday_count"), #Time in
             func.coalesce(func.sum(case((Summary.status == 'Absent', 1), else_=0)), 0).label("absent_count"),
-            func.coalesce(func.sum(case((Summary.checkout_status == 'Undertime', 1), else_=0)), 0).label("undertime_count"),
+
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Summary.checkout_status == 'Undertime',
+                                Summary.status.notin_(['On leave', 'Official Business'])
+                            ),
+                            1
+                        ),
+                        else_=0
+                    )
+                ),
+                0
+            ).label("undertime_count"),
+
             func.coalesce(func.sum(case((Summary.checkout_status == 'No info', 1), else_=0)), 0).label("no_checkout"),
         )
         .outerjoin(Attendance, Summary.att_id == Attendance.id)
