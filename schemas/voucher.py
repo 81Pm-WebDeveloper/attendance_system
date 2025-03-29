@@ -2,7 +2,7 @@ from pydantic import BaseModel,Field
 from typing import Optional
 
 
-class InsertSummary(BaseModel):
+class InsertVoucher(BaseModel):
     employee_id: int
     issue_date: str
     expiry_date: str
