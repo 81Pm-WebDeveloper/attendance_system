@@ -9,7 +9,16 @@ from config.authentication import verify_key
 from schemas.attendance import VoucherUseRequest
 from schemas.voucher import parsoVouchers, VoucherUpdateRequest
 from typing import List
+from schemas.voucher import InsertVoucher
 router = APIRouter()
+
+@router.post("/insert/",status_code=202,dependencies=[Depends(verify_key)])
+def insert_voucher(voucher: InsertVoucher,db:Session = Depends(get_db)):
+    try:
+        result = voucherService.insert_voucher(db, voucher)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
 
 @router.get("/all/",status_code=200,dependencies=[Depends(verify_key)])
 def fetch_all_vouchers(

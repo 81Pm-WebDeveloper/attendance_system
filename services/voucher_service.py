@@ -7,9 +7,16 @@ from datetime import date,datetime,timedelta
 #from schemas.attendance import VoucherUseRequest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
-
+from schemas.voucher import InsertVoucher
 voucher_day = 5
 
+def insert_voucher(db:Session,voucher:InsertVoucher):
+    new_voucher = Vouchers(**voucher.model_dump())
+    db.add(new_voucher)
+    db.commit()
+    db.refresh(new_voucher)
+
+    return new_voucher
 #VOUCHER DISPLAY FOR HR
 def fetch_all_vouchers(
     db: Session,
