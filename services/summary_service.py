@@ -102,6 +102,7 @@ def fetch_summary(
             or_(
                 Summary.employee_id.like(search_term),
                 Summary.status.like(search_term),
+                Summary.checkout_status.like(search_term)
             )
         )
 
