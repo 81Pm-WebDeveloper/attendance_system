@@ -119,6 +119,7 @@ def fetch_attendance(
                 Attendance.date.ilike(search_term),
                 Attendance.status.ilike(search_term),
                 Attendance.employee_id.ilike(search_term),
+                Attendance.checkout_status.ilike(search_term)
             )
         )
 
