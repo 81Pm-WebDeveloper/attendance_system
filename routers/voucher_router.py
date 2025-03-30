@@ -12,6 +12,14 @@ from typing import List
 from schemas.voucher import InsertVoucher
 router = APIRouter()
 
+@router.post("/test/",status_code=200,dependencies=[Depends(verify_key)])
+def search_voucher(search_query=str,db:Session=Depends(get_db),db2:Session=Depends(get_db2)):
+    try:
+        result = voucherService.search_voucher(db,db2,search_query)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"An error occured: {e}")
+
 @router.post("/insert/",status_code=202,dependencies=[Depends(verify_key)])
 def insert_voucher(voucher: InsertVoucher,db:Session = Depends(get_db)):
     try:
