@@ -12,8 +12,8 @@ from typing import List
 from schemas.voucher import InsertVoucher
 router = APIRouter()
 
-@router.post("/test/",status_code=200,dependencies=[Depends(verify_key)])
-def search_voucher(search_query=str,db:Session=Depends(get_db),db2:Session=Depends(get_db2)):
+@router.post("/search/",status_code=200,dependencies=[Depends(verify_key)])
+def search_voucher(search_query:str = None,db:Session=Depends(get_db),db2:Session=Depends(get_db2)):
     try:
         result = voucherService.search_voucher(db,db2,search_query)
         return result

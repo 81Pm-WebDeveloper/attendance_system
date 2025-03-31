@@ -78,24 +78,28 @@ def fetch_all_vouchers(
     }
 
 #TEST ROUTE
-def search_voucher(db: Session, db2: Session, search_query: str):
-
-    employee_ids = db2.query(Employee2.empID).filter(or_(
-        Employee2.fullname.ilike(f"%{search_query}%"),
-        Employee2.username.ilike(f"%{search_query}%"),
-    )).all()
+def search_voucher(db: Session, db2: Session, search_query: str = None):
+    employee_data = db2.query(Employee2.empID, Employee2.fullname).all()
     
-    employee_ids = [emp_id[0] for emp_id in employee_ids]
-
+    if search_query:
+        employee_data = db2.query(Employee2.empID, Employee2.fullname).filter(or_(
+            Employee2.fullname.ilike(f"%{search_query}%"),
+            Employee2.username.ilike(f"%{search_query}%"),
+        )).all()
+    
+    employee_map = {emp_id: fullname for emp_id, fullname in employee_data}
+    employee_ids = list(employee_map.keys())
+    
     if not employee_ids:
         return {"voucher": []}
-
-    result = db.query(Vouchers).filter(Vouchers.employee_id.in_(employee_ids)).all()
-
+    
+    result = db.query(Vouchers).filter(and_(Vouchers.employee_id.in_(employee_ids), Vouchers.date_used == None)).all()
+    
     return {
         "voucher": [
             {
                 "employee_id": i.employee_id,
+                "fullname": employee_map.get(i.employee_id, ""),
                 "issue_date": i.issue_date,
                 "expiry_date": i.expiry_date,
                 "date_used": i.date_used
