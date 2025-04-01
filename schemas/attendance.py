@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional,List
+from datetime import time
 
 
 class AttendanceBase(BaseModel):
@@ -35,3 +36,7 @@ class Parso(BaseModel):
     date: str
     vouchers: List[int]
     
+class CustomLog(BaseModel):
+    regular_in_time: Optional[str] = None  # Optional time field
+    regular_out_time: Optional[str] = None  # Optional time field
+    date_input: str

@@ -5,10 +5,25 @@ from db.database import get_db
 from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
-from schemas.attendance import CheckVoucher
+from schemas.attendance import CheckVoucher,CustomLog
 
 router = APIRouter()
 load_dotenv()
+
+
+@router.post("/custom-time/",status_code=200, dependencies=[Depends(verify_key)])
+def custom_time(body: CustomLog,db:Session= Depends(get_db)):
+    """
+    Custom time
+    """
+    if not body: 
+        raise HTTPException(status_code=400, detail="No data passed")
+    try:
+        result = attendanceService.special_case(db,body.date_input,body.regular_in_time,body.regular_out_time)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
 
 @router.post("/", status_code=200, dependencies=[Depends(verify_key)])
 def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):

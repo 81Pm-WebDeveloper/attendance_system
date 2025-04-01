@@ -92,6 +92,45 @@ def chunks(lst, n):
         yield lst[i:i + n]
 #-----------------------------------------------------------
 
+def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_time: str = '18:00:00'):
+    attendance_logs = db.query(Attendance).filter(Attendance.date == date_input).all()
+
+    if not attendance_logs:
+        return None
+
+    in_time_obj = datetime.strptime(in_time, "%H:%M:%S").time()
+    out_time_obj = datetime.strptime(out_time, "%H:%M:%S").time()
+
+    for att in attendance_logs:
+
+        if att.time_in:
+            if att.time_in < in_time_obj:
+                att.status = 'On time'
+                att.late_min = None
+            else:
+                late_min = (datetime.combine(datetime.min, att.time_in) - datetime.combine(datetime.min, in_time_obj)).seconds // 60
+                att.status = 'Late'
+                att.late_min = late_min
+
+        if att.time_out:
+            if att.time_out >= out_time_obj:
+                att.checkout_status = 'On time'
+                att.undertime_min = None
+            else:
+                undertime_min = (datetime.combine(datetime.min, out_time_obj) - datetime.combine(datetime.min, att.time_out)).seconds // 60
+                att.checkout_status = 'Undertime'
+                att.undertime_min = max(0, undertime_min)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise Exception(f"Error updating attendance: {str(e)}")
+
+    return attendance_logs
+
+
+
 
 
 def check_existing_record(db: Session, user_id, log_date):
