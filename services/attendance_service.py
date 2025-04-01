@@ -235,6 +235,8 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
         Attendance.checkout_status
     ).filter(Attendance.date.between(start_date, end_date)).all()
 
+    if not attendance_data:
+        return None
 
     attendance_dict = {emp.empID: [] for emp in employees}
 
