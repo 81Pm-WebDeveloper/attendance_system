@@ -18,7 +18,7 @@ def insert_summary(db: Session, data):
         unique_employee_dates = set()
 
         for item in data:
-            item['date'] = item.get('date')
+            item['date'] = item.get('date') or date.today()
             emp_date = (item['employee_id'], item['date'])
 
             existing_entry = db.query(Summary).filter(
