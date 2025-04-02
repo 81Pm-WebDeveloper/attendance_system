@@ -325,7 +325,7 @@ if __name__ == "__main__":
     device_ip = os.getenv("device_ip")
     port = int(os.getenv("device_port", 4370))
     start_time = time.time()
-    days = 3
+    days = 1
     today = date.today()
     start_date = today - timedelta(days=days)
     db = next(get_db())
