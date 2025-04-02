@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends,Body, HTTPException
 from sqlalchemy.orm import Session
 import services.attendance_service as attendanceService
 from db.database import get_db
+from db.database2 import get_db2
 from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
@@ -9,8 +10,15 @@ from schemas.attendance import CheckVoucher,CustomLog
 
 router = APIRouter()
 load_dotenv()
-
-
+# FOR TESTING
+# @router.post("/fetch-attendance-between/",status_code=200)
+# def fetch_att(start_date:str, end_date:str, db:Session=Depends(get_db),db2:Session=Depends(get_db2)):
+#     try:
+#         result = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
+#         return result
+#     except Exception as e:
+#         raise HTTPException(status_code=500,detail=f"Internal server error: {str(e)}")
+    
 @router.post("/custom-time/",status_code=200, dependencies=[Depends(verify_key)])
 def custom_time(body: CustomLog,db:Session= Depends(get_db)):
     """
