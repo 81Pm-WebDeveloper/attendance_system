@@ -249,7 +249,7 @@ def fetch_attendance(
 
 # Linear
 def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date, end_date: date):
-   
+    start_date_ = datetime.strptime(start_date, "%Y-%m-%d").date()
     today = date.today().strftime('%a').upper()
 
     excluded_positions = {'System Admin', 'SystemTester','Admin','CEO','Manager','HRdev','WebDev'}
@@ -296,7 +296,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
                     "status": att.status,
                     "checkout_status": att.checkout_status,
                 })
-        else:
+        elif not attendance_dict[employee.empID] and start_date_ == date.today():
             result.append({
                 "employee_id": employee.empID,
                 "att_id": None,
