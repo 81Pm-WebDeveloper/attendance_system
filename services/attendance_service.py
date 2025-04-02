@@ -296,7 +296,7 @@ def fetch_attendance_between_dates(db1: Session, db2: Session, start_date: date,
                     "status": att.status,
                     "checkout_status": att.checkout_status,
                 })
-        elif not attendance_dict[employee.empID] and start_date == date.today():
+        else:
             result.append({
                 "employee_id": employee.empID,
                 "att_id": None,
