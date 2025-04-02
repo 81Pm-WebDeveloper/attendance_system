@@ -11,7 +11,27 @@ from schemas.voucher import InsertVoucher
 voucher_day = 5
 
 def insert_voucher(db:Session,voucher:InsertVoucher):
-    new_voucher = Vouchers(**voucher.model_dump())
+    issue_date = datetime.strptime(voucher.issue_date, "%Y-%m-%d") 
+    expiry_date = issue_date + timedelta(days=37)
+    if issue_date.weekday() != voucher_day:
+        return {"error": f"Vouchers can only issued on Saturdays"}
+      
+    existing_voucher = (
+            db.query(Vouchers)
+            .filter(
+                Vouchers.employee_id == voucher.employee_id,
+                Vouchers.issue_date >= issue_date  
+            )
+            .first()
+        )
+    if existing_voucher:
+        raise HTTPException(status_code=400, detail="Voucher already exist")
+    
+    new_voucher = Vouchers(
+        **voucher.model_dump(),
+        expiry_date=expiry_date
+    )
+
     db.add(new_voucher)
     db.commit()
     db.refresh(new_voucher)
