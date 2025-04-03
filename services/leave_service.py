@@ -14,8 +14,8 @@ import random
 def reward_leave(db: Session, data):
     if len(data.vouchers) != 4:
         raise HTTPException(status_code=403, detail="Not enough vouchers/System error: Try Again!")
-    #if datetime.strptime(data.date, "%Y-%m-%d").weekday() != 5:  # Ensure it's Saturday (5)
-    #    raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
+    if datetime.strptime(data.date, "%Y-%m-%d").weekday() != 5:  # Ensure it's Saturday (5)
+        raise HTTPException(status_code=403, detail="Vouchers can only be used on a Saturday.")
     
     emp = db.query(Employee2.username, Employee2.emp_head).filter(Employee2.empID == data.employee_id).first()
     
@@ -70,7 +70,7 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
         Leave.leave_type
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
-        #Leave.leave_pay == "Paid",
+        Leave.leave_pay == "Paid",
         Leave.leave_start <= end_date,
         Leave.leave_end >= start_date
     ).all()

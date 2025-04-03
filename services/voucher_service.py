@@ -8,7 +8,7 @@ from datetime import date,datetime,timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
 from schemas.voucher import InsertVoucher
-voucher_day = 3
+voucher_day = 5
 
 def insert_voucher(db:Session,voucher:InsertVoucher):
     issue_date = datetime.strptime(voucher.issue_date, "%Y-%m-%d") 
@@ -187,8 +187,8 @@ def fetch_attendance_vouchers(db: Session, db2: Session, departments: list[str],
 #DISPLAY VOUCHERS FOR EMPLOYEEs
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
-    #if date_obj.weekday() != voucher_day:
-    #    raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
+    if date_obj.weekday() != voucher_day:
+        raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
     vouchers = db.query(Vouchers).filter(
         Vouchers.employee_id == employee_id,
         Vouchers.date_used == None,  
