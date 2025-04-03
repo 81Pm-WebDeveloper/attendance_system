@@ -14,7 +14,7 @@ def insert_voucher(db:Session,voucher:InsertVoucher):
     issue_date = datetime.strptime(voucher.issue_date, "%Y-%m-%d") 
     expiry_date = issue_date + timedelta(days=37)
     if issue_date.weekday() != voucher_day:
-        return {"error": f"Vouchers can only issued on Saturdays"}
+        raise HTTPException(status_code=400, detail="Vouchers can only be issued on saturdays")
       
     existing_voucher = (
             db.query(Vouchers)
