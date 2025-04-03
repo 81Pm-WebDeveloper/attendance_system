@@ -31,7 +31,7 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
         Leave.leave_type
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
-        #Leave.leave_pay == "Paid",
+        Leave.leave_pay == "Paid",
         Leave.leave_start <= end_date,
         Leave.leave_end >= start_date
     ).all()
