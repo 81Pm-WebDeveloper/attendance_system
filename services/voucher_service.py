@@ -187,8 +187,8 @@ def fetch_attendance_vouchers(db: Session, db2: Session, departments: list[str],
 #DISPLAY VOUCHERS FOR EMPLOYEEs
 def fetch_vouchers(db: Session, employee_id: int, date: date):
     date_obj = datetime.strptime(date, "%Y-%m-%d").date()
-    # if date_obj.weekday() != voucher_day:
-    #     raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
+    if date_obj.weekday() != voucher_day:
+         raise HTTPException(status_code=400, detail="Vouchers are only valid for saturdays")
     vouchers = db.query(Vouchers).filter(
         Vouchers.employee_id == employee_id,
         Vouchers.date_used == None,  
