@@ -197,7 +197,7 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
     result = {}
     leave_frequency = {}
 
-    unique_days = set() #REMOVE
+    #unique_days = set() #REMOVE
 
     for record in records:
         current_date = max(record.leave_start, start_date)
@@ -208,11 +208,11 @@ def leave_reports(db: Session, start_date: str, end_date: str, employee_id: int)
                 current_date += timedelta(days=1)
                 continue  
 
-            if current_date in unique_days: #REMOVE
-                current_date += timedelta(days=1)
-                continue  
+            # if current_date in unique_days: #REMOVE
+            #     current_date += timedelta(days=1)
+            #     continue  
 
-            unique_days.add(current_date) # REMOVE
+            # unique_days.add(current_date) # REMOVE
 
             year_month = f"{current_date.year} {calendar.month_name[current_date.month]}"
 
