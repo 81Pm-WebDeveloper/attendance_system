@@ -119,7 +119,7 @@ def get_leaves(db: Session,check_date: date = None):
         Leave.leave_pay
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
-        #Leave.leave_pay =='Paid',
+        Leave.leave_pay =='Paid',
         Leave.leave_start <= check_date,  
         Leave.leave_end >= check_date     
     ).all()  

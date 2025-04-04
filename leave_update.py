@@ -26,12 +26,13 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
     leaves = db2.query(
         Employee2.empID,
         Leave.leave_start,
+        Leave.leave_pay,
         Leave.leave_end,
         Leave.leave_reason,
         Leave.leave_type
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
-        Leave.leave_pay == "Paid",
+        #Leave.leave_pay == "Paid",
         Leave.leave_start <= end_date,
         Leave.leave_end >= start_date
     ).all()
@@ -48,8 +49,18 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
                 Summary.employee_id == leave.empID,
                 Summary.date == current_date
             ).first()
-
-            if existing_summary:
+            if leave.leave_pay != 'Paid':
+                if existing_summary.status != 'On leave' or 'Official Business' or 'Absent' or 'Half Day':
+                    existing_summary.status = 'Absent'
+                    existing_summary.remarks = f"({leave.leave_pay} {leave.leave_type}){leave.leave_reason}"
+                    updated_summaries.append({
+                        "employee_id": existing_summary.employee_id,
+                        "date": existing_summary.date.strftime("%Y-%m-%d"),
+                        "status": existing_summary.status,
+                        "remarks":existing_summary.remarks
+                    })
+            current_date += timedelta(days=1)
+            if existing_summary and leave.leave_pay == 'Paid':
                 if existing_summary.status != 'On leave' or 'Official Business':
                     existing_summary.status = 'On leave'
                     if leave.leave_type == 'Official Business':
