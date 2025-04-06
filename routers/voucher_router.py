@@ -60,13 +60,14 @@ def fetch_eligible_emp(db: Session = Depends(get_db), db2: Session = Depends(get
 def fetch_vouchers(
     db: Session = Depends(get_db),
     employee_id: int = None,
-    date: str = None
+    date: str = None,
+    voucher_id: int= None
 ):
     if employee_id is None:
         raise HTTPException(status_code=400, detail="Employee ID is required.")
 
     try:
-        result = voucherService.fetch_vouchers(db, employee_id,date)
+        result = voucherService.fetch_vouchers(db, employee_id,date,voucher_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
