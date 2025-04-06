@@ -186,13 +186,15 @@ def fetch_attendance_vouchers(db: Session, db2: Session, departments: list[str],
 
 #DISPLAY VOUCHERS FOR EMPLOYEEs
 def fetch_vouchers(db: Session, employee_id: int, date: date, voucher_id: int):
-    vouchers = db.query(Vouchers).filter(  
-        Vouchers.expiry_date >= date
-    )
+    vouchers = db.query(Vouchers)
     if voucher_id:
         vouchers = vouchers.filter(Vouchers.id == voucher_id).all()
     else:
-        vouchers = vouchers.filter(Vouchers.employee_id == employee_id,Vouchers.date_used == None).all()
+        vouchers = vouchers.filter(
+            Vouchers.employee_id == employee_id,
+            Vouchers.expiry_date >= date,
+            Vouchers.date_used == None
+            ).all()
     
     return vouchers
 
