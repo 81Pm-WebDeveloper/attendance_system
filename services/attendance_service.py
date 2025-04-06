@@ -56,15 +56,14 @@ def batch_insert_update_logs(db:Session, employee_logs):
     
     try:
         if inserts:
-            for batch in chunks(inserts, 100): 
-                stmt = insert(Attendance).values(batch)
-                update_dict = {
-                    'time_out': stmt.inserted.time_out,
-                    'checkout_status': stmt.inserted.checkout_status,
-                    'undertime_min': stmt.inserted.undertime_min
-                }
-                stmt = stmt.on_duplicate_key_update(**update_dict)
-                db.execute(stmt)
+            stmt = insert(Attendance).values(inserts)
+            update_dict = {
+                'time_out': stmt.inserted.time_out,
+                'checkout_status': stmt.inserted.checkout_status,
+                'undertime_min': stmt.inserted.undertime_min
+            }
+            stmt = stmt.on_duplicate_key_update(**update_dict)
+            db.execute(stmt)
         
         if updates:
             db.bulk_update_mappings(Attendance, [
@@ -86,10 +85,10 @@ def batch_insert_update_logs(db:Session, employee_logs):
     return len(inserts), len(updates)
 #-----------------------------------------------------------
 
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+# def chunks(lst, n):
+#     """Yield successive n-sized chunks from lst."""
+#     for i in range(0, len(lst), n):
+#         yield lst[i:i + n]
 #-----------------------------------------------------------
 
 def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_time: str = '18:00:00'):
