@@ -32,7 +32,7 @@ app = FastAPI(title="Attendance System")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://81property.com"], 
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"], 
     allow_headers=["*"],  
