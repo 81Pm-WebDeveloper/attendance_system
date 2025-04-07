@@ -16,7 +16,7 @@ def Parso(body: Parso,db:Session= Depends(get_db2)):
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"An error occured: {e}")
     
-@router.get("/",status_code=200, dependencies=[Depends(verify_key)],)
+@router.get("/",status_code=200, dependencies=[Depends(verify_key)])
 def get_leave(db: Session = Depends(get_db2),date: str=None):
     try:
         result = leaveService.get_leaves(db,date)
