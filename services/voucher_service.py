@@ -7,8 +7,11 @@ from datetime import date,datetime,timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_,desc,and_,tuple_
 from schemas.voucher import InsertVoucher
+from dotenv import load_dotenv
+import os
 
-voucher_day = 5
+load_dotenv()
+voucher_day = int(os.getenv("voucher_day", 5))
 
 def insert_voucher(db:Session,voucher:InsertVoucher):
     issue_date = datetime.strptime(voucher.issue_date, "%Y-%m-%d") 

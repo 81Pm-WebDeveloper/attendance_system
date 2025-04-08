@@ -94,7 +94,7 @@ def fetch_summary(
         offset = 0  
 
     base_query = db1.query(Summary, Attendance.voucher_id)\
-        .outerjoin(Attendance, Summary.att_id == Attendance.id)  # Join Attendance to get voucher_id
+        .outerjoin(Attendance, Summary.att_id == Attendance.id) 
 
     if search_query:
         search_term = f"%{search_query}%"
