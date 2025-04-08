@@ -11,10 +11,11 @@ from routers import voucher_router
 from routers import summary_router
 #from routers import employee_router
 from routers import leave_router
-
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
-
+load_dotenv()
 
 
 Attendance.metadata.create_all(bind=engine)
@@ -26,9 +27,14 @@ Vouchers.metadata.create_all(bind=engine)
 Employee2.metadata.create_all(bind=engine2)
 Leave.metadata.create_all(bind=engine2)
 
+is_local = os.getenv("ENV", "local") == "local"
 
-
-app = FastAPI(title="Attendance System")
+app = FastAPI(
+    title="Attendance System",
+    docs_url=None if not is_local else "/docs",
+    redoc_url=None if not is_local else "/redoc",
+    openapi_url=None if not is_local else "/openapi.json"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,7 +43,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"], 
     allow_headers=["*"],  
 )
-
 
 #app.include_router(employee_router.router, prefix="/employee", tags=["Employee"])
 app.include_router(attendance_router.router, prefix="/attendance", tags=["Attendance"])
