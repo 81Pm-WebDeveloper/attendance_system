@@ -38,7 +38,7 @@ def insert_summary(
     except HTTPException as e:
         raise e  
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}, {response}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
     
 @router.post("/cron/", status_code=200, dependencies=[Depends(verify_key)])
 def insert_summary_cron(
