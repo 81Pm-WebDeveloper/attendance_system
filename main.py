@@ -27,14 +27,9 @@ Vouchers.metadata.create_all(bind=engine)
 Employee2.metadata.create_all(bind=engine2)
 Leave.metadata.create_all(bind=engine2)
 
-is_local = os.getenv("ENV", "local") == "local"
+#is_local = os.getenv("ENV", "local") == "local"
 
-app = FastAPI(
-    title="Attendance System",
-    docs_url=None if not is_local else "/docs",
-    redoc_url=None if not is_local else "/redoc",
-    openapi_url=None if not is_local else "/openapi.json"
-)
+app = FastAPI(title="Attendance System")
 
 app.add_middleware(
     CORSMiddleware,
