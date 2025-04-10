@@ -10,8 +10,8 @@ DATABASE_URL = os.getenv("database_url2")  # REPLACE WITH DOT ENV
 
 engine2 = create_engine(
     DATABASE_URL,
-    pool_size=10,
-    max_overflow=10,
+    pool_size=3,
+    max_overflow=5,
     pool_recycle=1800,
     pool_pre_ping=True,
     connect_args={"connect_timeout": 10}
