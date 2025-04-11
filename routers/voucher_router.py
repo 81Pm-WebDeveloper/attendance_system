@@ -10,7 +10,24 @@ from schemas.attendance import VoucherUseRequest
 from schemas.voucher import parsoVouchers, VoucherUpdateRequest
 from typing import List
 from schemas.voucher import InsertVoucher
+
 router = APIRouter()
+
+@router.post("/generate-vouchers/")
+def generate_vouchers(db: Session = Depends(get_db)):
+    date_from, date_to = voucherService.get_last_week_range()
+    required_days = voucherService.check_holiday(db, date_from, date_to)
+    emp_list = voucherService.get_perfect_attendance(db, date_from, date_to, required_days)
+
+    if not emp_list:
+        return {"message": "No employees qualified for vouchers."}
+
+    try:
+        voucherService.generate_voucher(db, emp_list, date_to)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error issuing vouchers: {str(e)}")
+
+    return {"message": f"Vouchers issued to: {emp_list}"}
 
 @router.post("/search/",status_code=200,dependencies=[Depends(verify_key)])
 def search_voucher(search_query:str = None,db:Session=Depends(get_db),db2:Session=Depends(get_db2)):
