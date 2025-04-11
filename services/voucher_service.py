@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from models.vouchers import Vouchers
 from models.attendance import Attendance
 from models.emp_list import Employee2
+from models.attendance_summary import Summary
 from datetime import date,datetime,timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import or_,desc,and_,tuple_
+from sqlalchemy import or_,desc,and_,tuple_,func
 from schemas.voucher import InsertVoucher
 from dotenv import load_dotenv
 import os
@@ -335,6 +336,89 @@ def use_vouchers(db: Session, voucher_ids: list[int], date: str):
         db.rollback()
         raise HTTPException(status_code=500, detail="Database error. Transaction rolled back.")
 
+#--------------------------
+def get_last_week_range():
+    today = datetime.today()
+    last_week_monday = today - timedelta(days=today.weekday() + 7) #0-6 => mon - sun
+    last_week_saturday = last_week_monday + timedelta(days=5)
+    
+    return last_week_monday.date(), last_week_saturday.date()
+    
 
+def check_holiday(db:Session, monday, saturday):
+    all_dates = set(monday + timedelta(days=i) for i in range(6)) #OR sat - mon + 1 
+
+    recorded_dates = set(
+        record.date for record in db.query(Attendance.date)
+        .filter(Attendance.date.between(monday, saturday))
+        .distinct()
+    )
+
+    missing_dates = all_dates - recorded_dates
+    print(missing_dates)
+    return 5 if len(missing_dates) == 1 else 6
+
+
+
+def get_perfect_attendance(db:Session, start_date: str, end_date: str, required_days):
+    if required_days < 5:
+        print('Working holiday > 1')
+        return []
+
+    result = (
+        db.query(Summary.employee_id)
+        .filter(Summary.date.between(start_date, end_date))
+        .filter(
+            and_(
+                Summary.status.in_(["On time", "Official Business", "PARSO"]),
+                or_(
+                    Summary.checkout_status == "On time",
+                    Summary.checkout_status == '',
+                    Summary.checkout_status.is_(None),
+                    and_(
+                        Summary.status == "Official Business",
+                        Summary.checkout_status == "No info"
+                    )
+                )
+            )
+        )
+        .group_by(Summary.employee_id)
+        .having(func.count(Summary.date) == required_days)
+        .all()
+    )
+
+    return [emp[0] for emp in result]
+ 
+
+def generate_voucher(db:Session, emp_list, last_sat):
+    expiry_date = last_sat + timedelta(days=37)
+    cebu = [37, 61, 198, 226, 230, 323, 80]
+
+    for emp_id in emp_list:
+        if emp_id in cebu:
+            print(f"Skipping Cebu employee ID {emp_id}")
+            continue
+
+        existing_voucher = (
+            db.query(Vouchers)
+            .filter(
+                Vouchers.employee_id == emp_id,
+                Vouchers.issue_date == last_sat
+            )
+            .first()
+        )
+
+        if existing_voucher:
+            print(f"Voucher already exists for Employee ID {emp_id}. Skipping...")
+            continue
+
+        db.add(Vouchers(
+            employee_id=emp_id,
+            issue_date=last_sat,
+            expiry_date=expiry_date,
+            date_used=None
+        ))
+
+    db.commit()
 
 
