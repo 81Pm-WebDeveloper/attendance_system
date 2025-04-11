@@ -73,7 +73,7 @@ def insert_voucher(db, emp_list, last_sat):
             db.query(Vouchers)
             .filter(
                 Vouchers.employee_id == emp_id,
-                Vouchers.issue_date >= last_sat  
+                Vouchers.issue_date == last_sat  
             )
             .first()
         )

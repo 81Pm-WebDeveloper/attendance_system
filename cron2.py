@@ -230,10 +230,10 @@ def insert_summary(start_date, end_date):
 
 #-----------------------------------------------------------
 
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+# def chunks(lst, n):
+#     """Yield successive n-sized chunks from lst."""
+#     for i in range(0, len(lst), n):
+#         yield lst[i:i + n]
 #-----------------------------------------------------------
 
 def connect_to_device(ip, port):
