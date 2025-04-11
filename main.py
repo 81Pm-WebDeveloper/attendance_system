@@ -29,7 +29,7 @@ Leave.metadata.create_all(bind=engine2)
 
 #is_local = os.getenv("ENV", "local") == "local"
 
-app = FastAPI(title="Attendance System",docs_url=None)
+app = FastAPI(title="Attendance System")
 
 app.add_middleware(
     CORSMiddleware,
