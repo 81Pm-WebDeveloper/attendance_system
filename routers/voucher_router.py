@@ -13,7 +13,7 @@ from schemas.voucher import InsertVoucher
 
 router = APIRouter()
 
-@router.post("/generate-vouchers/",status_code=202,dependencies=[Depends(verify_key)])
+@router.post("/generate-vouchers/",status_code=201,dependencies=[Depends(verify_key)])
 def generate_vouchers(db: Session = Depends(get_db)):
     date_from, date_to = voucherService.get_last_week_range()
     required_days = voucherService.check_holiday(db, date_from, date_to)
