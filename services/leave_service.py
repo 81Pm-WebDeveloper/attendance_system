@@ -94,7 +94,7 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
                 current_date += timedelta(days=1)
                 continue
 
-            if existing_summary.status not in ['On leave', 'Official Business']:
+            if existing_summary.status not in ['On leave', 'Official Business','PARSO']:
                 if leave.leave_type == 'Official Business':
                     existing_summary.status = 'Official Business'
                 elif leave.leave_type == 'Perfect Attendance Reward Saturday Off':
