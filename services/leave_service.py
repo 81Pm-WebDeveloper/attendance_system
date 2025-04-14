@@ -65,12 +65,13 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
     leaves = db2.query(
         Employee2.empID,
         Leave.leave_start,
+        Leave.leave_pay,
         Leave.leave_end,
         Leave.leave_reason,
         Leave.leave_type
     ).join(Leave, Employee2.username == Leave.emp_username).filter(
         Leave.leave_status == "APPROVED",
-        Leave.leave_pay == "Paid",
+        #Leave.leave_pay == "Paid",
         Leave.leave_start <= end_date,
         Leave.leave_end >= start_date
     ).all()
@@ -93,42 +94,22 @@ def update_summaries(db1: Session, db2: Session, start_date: date =None, end_dat
                 current_date += timedelta(days=1)
                 continue
 
-            if leave.leave_pay != 'Paid':
-                if existing_summary.status not in ['On leave', 'Official Business', 'Absent', 'Half Day']:
-                    if existing_summary.time_in is None:
-                        existing_summary.status = 'Absent'
-                        existing_summary.remarks = f"({leave.leave_pay} {leave.leave_type}){leave.leave_reason}"
-                        updated_summaries.append({
-                            "employee_id": existing_summary.employee_id,
-                            "date": existing_summary.date.strftime("%Y-%m-%d"),
-                            "status": existing_summary.status,
-                            "remarks": existing_summary.remarks
-                        })
-                    else:
-                        existing_summary.remarks = f"({leave.leave_pay} {leave.leave_type}){leave.leave_reason}"
-                        updated_summaries.append({
-                            "employee_id": existing_summary.employee_id,
-                            "date": existing_summary.date.strftime("%Y-%m-%d"),
-                            "status": existing_summary.status,
-                            "remarks": existing_summary.remarks
-                        })
+            if existing_summary.status not in ['On leave', 'Official Business']:
+                if leave.leave_type == 'Official Business':
+                    existing_summary.status = 'Official Business'
+                elif leave.leave_type == 'Perfect Attendance Reward Saturday Off':
+                    existing_summary.status = 'PARSO'
+                else:
+                    existing_summary.status = 'On leave'
 
-            else:
-                if existing_summary.status not in ['On leave', 'Official Business']:
-                    if leave.leave_type == 'Official Business':
-                        existing_summary.status = 'Official Business'
-                    elif leave.leave_type == 'Perfect Attendance Reward Saturday Off':
-                        existing_summary.status = 'PARSO'
-                    else:
-                        existing_summary.status = 'On leave'
-
-                    updated_summaries.append({
-                        "employee_id": existing_summary.employee_id,
-                        "date": existing_summary.date.strftime("%Y-%m-%d"),
-                        "status": existing_summary.status
-                    })
+                updated_summaries.append({
+                    "employee_id": existing_summary.employee_id,
+                    "date": existing_summary.date.strftime("%Y-%m-%d"),
+                    "status": existing_summary.status
+                })
 
             current_date += timedelta(days=1)
+
 
     db1.commit()
     return {"message": "Summaries updated successfully","Updated": updated_summaries}

@@ -249,8 +249,8 @@ def connect_to_device(ip, port):
 
 if __name__ == "__main__":
     load_dotenv()
-    device_ip = os.getenv("device_ip_oc")
-    port = int(os.getenv("device_port_oc"))
+    device_ip = os.getenv("device_ip")
+    port = int(os.getenv("device_port"))
     start_time = time.time()
     days = 1
     today = date.today()

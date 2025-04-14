@@ -1,112 +1,26 @@
-from fastapi import HTTPException
+import requests
+import json
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-from models.leave_app import Leave
-from models.emp_list import Employee2
-from models.attendance_summary import Summary
-from datetime import datetime, date
-from sqlalchemy import or_,desc,and_
-from sqlalchemy.sql import func
-import calendar 
-from datetime import datetime, timedelta
-import services.summary_service as summaryService
-from db.database import get_db
-from db.database2 import get_db2
+import os
+from datetime import datetime, date, timedelta
+load_dotenv()
 
-def update_summaries(db1: Session, db2: Session, start_date: date =None, end_date: date = None):
-    updated_summaries = []
-    start_date = start_date or date.today()
-    end_date = end_date or date.today()
-
-    if isinstance(start_date, str):
-        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-    leaves = db2.query(
-        Employee2.empID,
-        Leave.leave_start,
-        Leave.leave_pay,
-        Leave.leave_end,
-        Leave.leave_reason,
-        Leave.leave_type
-    ).join(Leave, Employee2.username == Leave.emp_username).filter(
-        Leave.leave_status == "APPROVED",
-        #Leave.leave_pay == "Paid",
-        Leave.leave_start <= end_date,
-        Leave.leave_end >= start_date
-    ).all()
-
-    for leave in leaves:
-        current_date = max(leave.leave_start, start_date)
-        end = min(leave.leave_end, end_date)
-
-        while current_date <= end:
-            if current_date.weekday() == 6:  # Skip Sundays
-                current_date += timedelta(days=1)
-                continue
-
-            existing_summary = db1.query(Summary).filter(
-                Summary.employee_id == leave.empID,
-                Summary.date == current_date
-            ).first()
-
-            if not existing_summary:
-                current_date += timedelta(days=1)
-                continue
-
-            if leave.leave_pay != 'Paid':
-                if existing_summary.status not in ['On leave', 'Official Business', 'Absent', 'Half Day']:
-                    if existing_summary.time_in is None:
-                        existing_summary.status = 'Absent'
-                        existing_summary.remarks = f"({leave.leave_pay} {leave.leave_type}){leave.leave_reason}"
-                        updated_summaries.append({
-                            "employee_id": existing_summary.employee_id,
-                            "date": existing_summary.date.strftime("%Y-%m-%d"),
-                            "status": existing_summary.status,
-                            "remarks": existing_summary.remarks
-                        })
-                    else:
-                        existing_summary.remarks = f"({leave.leave_pay} {leave.leave_type}){leave.leave_reason}"
-                        updated_summaries.append({
-                            "employee_id": existing_summary.employee_id,
-                            "date": existing_summary.date.strftime("%Y-%m-%d"),
-                            "status": existing_summary.status,
-                            "remarks": existing_summary.remarks
-                        })
-
-            else:
-                if existing_summary.status not in ['On leave', 'Official Business']:
-                    if leave.leave_type == 'Official Business':
-                        existing_summary.status = 'Official Business'
-                    elif leave.leave_type == 'Perfect Attendance Reward Saturday Off':
-                        existing_summary.status = 'PARSO'
-                    else:
-                        existing_summary.status = 'On leave'
-
-                    updated_summaries.append({
-                        "employee_id": existing_summary.employee_id,
-                        "date": existing_summary.date.strftime("%Y-%m-%d"),
-                        "status": existing_summary.status
-                    })
-
-            current_date += timedelta(days=1)
-
-
-    db1.commit()
-    return {"message": "Summaries updated successfully","Updated": updated_summaries}
-
-if __name__ == "__main__":
-    db = next(get_db())
-    db2 = next(get_db2())
-    today = date.today()
-    date_from = today - timedelta(days=5)
-    #print(f"{date_from} - {today}")
+def leave_update(date_1,date_2):
+    url = f"{os.getenv('api-url-leave')}?start_date={date_1}&end_date={date_2}"
+    headers = {
+        "Content-Type" : "application/json",
+        "API-KEY": os.getenv('api_key')
+    }
     try:
-        result = update_summaries(db,db2, date_from, today)
-        #print(result)
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        db.close()
-        db2.close()
+        response = requests.post(url,headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+    
+if __name__ == "__main__":
+    days=5
+    today = date.today()
+    start_date = today - timedelta(days=days)
+    response = leave_update(start_date,today)
+    print(response)

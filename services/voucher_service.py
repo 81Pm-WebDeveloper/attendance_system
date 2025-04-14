@@ -392,7 +392,7 @@ def get_perfect_attendance(db:Session, start_date: str, end_date: str, required_
 
 def generate_voucher(db:Session, emp_list, last_sat):
     expiry_date = last_sat + timedelta(days=37)
-    cebu = [37, 61, 198, 226, 230, 323, 80]
+    cebu = [37, 61, 198, 226, 230, 323, 80] #CHANGEEEEEEEEEEEEEEEEE - TEMPORARY FIX
 
     for emp_id in emp_list:
         if emp_id in cebu:
