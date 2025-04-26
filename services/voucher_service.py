@@ -240,8 +240,9 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
         raise HTTPException(status_code=400, detail="voucher_id and att_id are required.")
 
    
-    result = db.query(Attendance, Vouchers)\
+    result = db.query(Attendance, Vouchers,Summary.status)\
         .join(Vouchers, Attendance.employee_id == Vouchers.employee_id)\
+        .join(Summary, Summary.att_id == Attendance.id)\
         .filter(
             Attendance.id == att_id, 
             Vouchers.id == voucher_id,
@@ -251,14 +252,14 @@ def use_voucher(db: Session, voucher_id: int = None, att_id: int = None):
     if not result:
         raise HTTPException(status_code=404, detail="Invalid att_id or voucher_id")
 
-    attendance, voucher = result 
+    attendance, voucher, summary_status = result 
     if attendance.voucher_id:
         raise HTTPException(status_code=404, detail="Voucher already applied")
 
     if attendance.date.weekday() != voucher_day:
         raise HTTPException(status_code=403, detail="Voucher can only be used on a Saturday.")
 
-    if attendance.status != 'On time':
+    if summary_status != 'On time':
         raise HTTPException(status_code=403, detail="Voucher can only be used if status is 'On time'")
 
     voucher.date_used = attendance.date
