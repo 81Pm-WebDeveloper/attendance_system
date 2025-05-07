@@ -18,7 +18,7 @@ def submit_score(db: Session, data: ScoreRequest):
     score_map = {1: 5, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1}
     points = score_map.get(data.tries, 0)
     player.score += points
-    player.last_submission = datetime.now()
+    player.last_submission = date.today()
 
     db.commit()
     return {"message": "Score Submitted", "points": points}
