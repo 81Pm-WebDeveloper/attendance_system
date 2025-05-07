@@ -18,7 +18,19 @@ def submit_score(db: Session, data: ScoreRequest):
     score_map = {1: 5, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1}
     points = score_map.get(data.tries, 0)
     player.score += points
-    player.last_submission = datetime.utcnow()
+    player.last_submission = datetime.now()
 
     db.commit()
     return {"message": "Score Submitted", "points": points}
+
+def get_leaderboard(db:Session):
+    leaderboard = db.query(Score).order_by(Score.score.desc()).all()
+
+    response = [
+        {
+            'username': row.username,
+            'score': row.score
+        }
+        for row in leaderboard
+    ]
+    return response
