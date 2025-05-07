@@ -12,7 +12,7 @@ def submit_score(db: Session, data: ScoreRequest):
         db.add(player)
         db.commit()
 
-    if player.last_submission and player.last_submission.date() == date.today():
+    if player.last_submission and player.last_submission == date.today():
         return {"message": "Score already submitted today", "points": 0}
 
     score_map = {1: 5, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1}
