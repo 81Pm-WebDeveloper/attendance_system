@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String,DateTime
+from sqlalchemy import Column, Integer, String,DateTime,Date
 from db.database import Base
 from datetime import datetime
 class Score(Base):
@@ -6,4 +6,4 @@ class Score(Base):
 
     username = Column(String(50),primary_key=True)
     score = Column(Integer,nullable=False)
-    last_submission = Column(DateTime, nullable=True)
+    last_submission = Column(Date, nullable=True)
