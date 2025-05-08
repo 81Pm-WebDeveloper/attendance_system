@@ -1,8 +1,39 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.scoreboard import Score
-from schemas.scoreboard_schema import ScoreRequest
+from schemas.scoreboard_schema import ScoreRequest,guessRequest
 from datetime import datetime, date
+import json
+
+def save_guesses(db:Session, data: guessRequest):
+    score = db.query(Score).filter(Score.username == data.username).first()
+
+    if not score:
+        guesses = [data.guess]
+        db.add(Score(
+            username=data.username,
+            score=0,
+            guesses=json.dumps(guesses),
+            last_guess_submission=date.today()
+        ))
+    else:
+        if score.last_guess_submission == date.today():
+            current = json.loads(score.guesses or "[]")
+            current.append(data.guess)
+            score.guesses = json.dumps(current)
+        else:
+            score.guesses = json.dumps([data.guess])
+            score.last_guess_submission = date.today()
+    db.commit()
+    return {"message": "Guess Submitted"}
+
+def fetch_guesses(db: Session, username: str):
+    guesses = db.query(Score.guesses, Score.last_guess_submission).filter(Score.username == username).first()
+    
+    if guesses and guesses[1] == date.today():
+        return json.loads(guesses[0])
+    return []
+
 
 def submit_score(db: Session, data: ScoreRequest):
     player = db.query(Score).filter(Score.username == data.username).first()
