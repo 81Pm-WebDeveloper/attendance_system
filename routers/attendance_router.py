@@ -78,7 +78,13 @@ def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
 #     except Exception as e:
 #         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-
+@router.get("/out-time/",dependencies=[Depends(verify_key)])
+def out_time(date:str,db:Session = Depends(get_db),db2:Session = Depends(get_db2)):
+    try:
+        result = attendanceService.out_time(db,db2,date)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 #DEPLOY
 @router.get("/",dependencies=[Depends(verify_key)])
 def get_attendance(
