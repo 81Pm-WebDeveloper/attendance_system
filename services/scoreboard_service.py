@@ -23,6 +23,8 @@ def save_guesses(db:Session, data: guessRequest):
     else:
         if score.last_guess_submission == today_:
             current = json.loads(score.guesses or "[]")
+            if data.guess in current:
+                return {"message" : "Word already submitted"}
             current.append(data.guess)
             score.guesses = json.dumps(current)
         else:
