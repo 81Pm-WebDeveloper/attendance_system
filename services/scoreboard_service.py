@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException,status
 from sqlalchemy.orm import Session
 from models.scoreboard import Score
 from schemas.scoreboard_schema import ScoreRequest,guessRequest
@@ -24,7 +24,10 @@ def save_guesses(db:Session, data: guessRequest):
         if score.last_guess_submission == today_:
             current = json.loads(score.guesses or "[]")
             if data.guess in current:
-                return {"message" : "Word already submitted"}
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Word already submitted"
+                )
             current.append(data.guess)
             score.guesses = json.dumps(current)
         else:

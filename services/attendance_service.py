@@ -99,7 +99,8 @@ def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_ti
 
     in_time_obj = datetime.strptime(in_time, "%H:%M:%S").time()
     out_time_obj = datetime.strptime(out_time, "%H:%M:%S").time()
-
+    half_day = datetime.strptime("13:30:00","%H:%M:%S").time()
+    
     for att in attendance_logs:
 
         if att.time_in:
@@ -112,6 +113,9 @@ def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_ti
                 att.late_min = late_min
 
         if att.time_out:
+            if att.time_out >= half_day:
+                att.checkout_status = 'Half Day'
+                att.undertime_min = None
             if att.time_out >= out_time_obj:
                 att.checkout_status = 'On time'
                 att.undertime_min = None
