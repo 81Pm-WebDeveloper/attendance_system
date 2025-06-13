@@ -48,7 +48,7 @@ def timeout_status(time_in, time_out, is_friday=False,is_saturday= False,is_vouc
     if time_out <= half_day_threshold:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
         undertime_min = max(0, undertime_min -60)
-        return (undertime_min, "Undertime")
+        return (None, "Half Day")
 
     elif time_out < regular_out_time:
         undertime_min = (datetime.combine(datetime.min, regular_out_time) - datetime.combine(datetime.min, time_out)).seconds // 60
