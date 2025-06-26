@@ -116,7 +116,8 @@ def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_ti
             if att.time_out <= half_day:
                 att.checkout_status = 'Half Day'
                 att.undertime_min = None
-            if att.time_out >= out_time_obj:
+                
+            elif att.time_out >= out_time_obj:
                 att.checkout_status = 'On time'
                 att.undertime_min = None
             else:
