@@ -22,7 +22,8 @@ load_dotenv()
 @router.post("/custom-time/",status_code=200, dependencies=[Depends(verify_key)])
 def custom_time(body: CustomLog,db:Session= Depends(get_db)):
     """
-    Custom time
+    Custom time/Attendance Special cases 
+    FIX LOGIC CREATE FRONT-END
     """
     if not body: 
         raise HTTPException(status_code=400, detail="No data passed")
@@ -52,7 +53,7 @@ def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
 
 def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
     """
-    Voucher checker for One Central
+    Vouhcer check trigger - used in CRON/Scheduled task
     """
     try:
         response = attendanceService.check_voucher(db,body.employee_id,body.date)
@@ -81,6 +82,9 @@ def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
 
 @router.get("/out-time/",dependencies=[Depends(verify_key)])
 def out_time(date:str,db:Session = Depends(get_db),db2:Session = Depends(get_db2)):
+    """
+    UNDER DEVELOPMENT - Returns out time for flexi days
+    """
     try:
         result = attendanceService.out_time(db,db2,date)
         return result
@@ -98,6 +102,9 @@ def get_attendance(
     employee_id_filter: str = None,
     db: Session = Depends(get_db)
 ):
+    """
+    GET ATTENDANCE
+    """    
     return attendanceService.fetch_attendance(db, page, page_size, search_query,date_from,date_to,status_filter,employee_id_filter)
 
     
