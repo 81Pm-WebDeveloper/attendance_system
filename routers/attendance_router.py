@@ -37,6 +37,7 @@ def custom_time(body: CustomLog,db:Session= Depends(get_db)):
 def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
     """
     Insert attendance route
+    Call using Python script(Scheduled task / Cron)
     """
     if not data:
         raise HTTPException(status_code=400, detail="No attendance data provided.")
