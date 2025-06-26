@@ -45,7 +45,7 @@ def leave_update(db1: Session = Depends(get_db), db2: Session = Depends(get_db2)
 @router.get("/report/",status_code=200,dependencies=[Depends(verify_key)])
 def leave_report(db:Session= Depends(get_db2),start_date:str =None, end_date:str =None, employee_id: int = None):
     """
-    GETS A SUMMARY OF LEAVES FOR REPORT
+    RETURN - SUMMARY OF LEAVES FOR REPORT
     """
     try:
         result = leaveService.leave_reports(db,start_date,end_date,employee_id)
