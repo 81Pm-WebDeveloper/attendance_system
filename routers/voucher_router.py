@@ -55,13 +55,13 @@ def insert_voucher(voucher: InsertVoucher,db:Session = Depends(get_db)):
 def fetch_all_vouchers(
     db:Session = Depends(get_db),
     db2:Session = Depends(get_db2),
-    page: int =1,
-    page_size:int =10,
+    page: int =None,
+    page_size:int =None,
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None,
-    used_filter: str = 'unused'  
+    used_filter: str = None  
 ):
     """
     FETCH ALL VOUCHER - NOT USED 

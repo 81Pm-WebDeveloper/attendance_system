@@ -45,8 +45,8 @@ def insert_voucher(db:Session,voucher:InsertVoucher):
 def fetch_all_vouchers(
     db: Session,
     db2: Session,
-    page: int = 1,
-    page_size: int = 10,
+    page: int = None,
+    page_size: int = None,
     search_query: str = None,
     date_from: str = None,
     date_to: str = None,
