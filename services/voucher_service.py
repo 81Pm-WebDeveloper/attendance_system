@@ -51,7 +51,7 @@ def fetch_all_vouchers(
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None,
-    used_filter: str = 'unused'
+    used_filter: str = None
 ):
     
     query = db.query(Vouchers).order_by(desc(Vouchers.expiry_date))
@@ -66,11 +66,11 @@ def fetch_all_vouchers(
     if employee_id_filter:
         query = query.filter(Vouchers.employee_id.ilike(f"%{employee_id_filter}%"))
 
-    if used_filter:
-        if used_filter == "used":
-            query = query.filter(Vouchers.date_used.isnot(None))
-        elif used_filter == "unused":
-            query = query.filter(Vouchers.date_used.is_(None))
+   
+    if used_filter == "used":
+        query = query.filter(Vouchers.date_used.isnot(None))
+    elif used_filter == "unused":
+        query = query.filter(Vouchers.date_used.is_(None))
 
     total_count = query.count()
 
