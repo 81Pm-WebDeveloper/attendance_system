@@ -2,9 +2,12 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
+from config.features import VOUCHERS_ENABLED
 load_dotenv()
 
 def voucher():
+    if not VOUCHERS_ENABLED:
+        return {"disabled": True, "message": "Voucher flow is disabled"}
     url = os.getenv('api-url-voucher')
     headers = {
         "Content-Type" : "application/json",

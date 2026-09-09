@@ -1,0 +1,11 @@
+name = "attendance-d1-backup"
+main = "src/index.js"
+compatibility_date = "2026-09-09"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "d1_eportal_attendance"
+database_id = "3ea2e5da-07b4-4685-ad07-a118ca4ce239"
+
+[vars]
+# Store BACKUP_TOKEN with: wrangler secret put BACKUP_TOKEN

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance System — Developer Notes</title>
+  <style>
+    :root { color-scheme: light dark; --ink:#1f2937; --muted:#5c6675; --line:#d8dee8; --page:#f4f7fb; --card:#fff; --accent:#0759a4; --warn:#8a5300; --risk:#9d1c20; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--page); color:var(--ink); font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1120px; margin:0 auto; padding:32px 24px 56px; }
+    header { border-bottom:3px solid var(--accent); margin-bottom:28px; }
+    h1 { margin:0 0 4px; font-size:2rem; } h2 { margin:34px 0 12px; font-size:1.35rem; } h3 { margin:20px 0 6px; font-size:1.05rem; }
+    p { margin:8px 0; } .lede { color:var(--muted); margin-bottom:18px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; }
+    .card h3 { margin-top:0; } .tag { display:inline-block; padding:2px 7px; border-radius:99px; font-size:.78rem; font-weight:650; background:#deedf9; color:#06447e; }
+    .warning { border-left:4px solid var(--warn); padding:10px 14px; background:#fff6e6; } .risk { border-left:4px solid var(--risk); padding:10px 14px; background:#fff0f0; }
+    table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); margin:10px 0 18px; } th,td { text-align:left; vertical-align:top; padding:9px 10px; border-bottom:1px solid var(--line); } th { background:#eaf1f8; font-weight:700; } tr:last-child td { border-bottom:0; }
+    code { font: .9em ui-monospace,SFMono-Regular,Consolas,monospace; background:#e9eef5; border-radius:3px; padding:1px 4px; overflow-wrap:anywhere; }
+    ul { margin:7px 0; padding-left:22px; } li { margin:4px 0; } .flow { padding:13px; border:1px dashed #8fa6bd; background:#f8fbff; font-weight:600; overflow-x:auto; white-space:nowrap; }
+    @media (prefers-color-scheme: dark) { :root { --ink:#e7ebf0; --muted:#afb9c6; --line:#374151; --page:#151a22; --card:#1e2631; --accent:#6eb5ff; --warn:#ffbb5c; --risk:#ff8585; } .warning{background:#392a12}.risk{background:#3d1d21} th{background:#273443} code{background:#2b3542} .flow{background:#192431;border-color:#527a9e} .tag{background:#173b5e;color:#b8ddff} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Attendance System — Developer Notes</h1>
+    <p class="lede">Static implementation guide for this FastAPI + ZKTeco collector. Generated from the current repository structure; it intentionally does not contain credentials or database connection strings.</p>
+  </header>
+
+  <section>
+    <h2>System at a glance</h2>
+    <div class="grid">
+      <article class="card"><h3>API</h3><p><code>main.py</code> creates the FastAPI app, applies CORS, creates mapped tables at startup, and mounts the attendance, summary, leave, and voucher routers.</p></article>
+      <article class="card"><h3>Attendance database</h3><p><code>database_url</code> backs raw attendance, derived summaries, and vouchers. Its session dependency is <code>get_db</code>.</p></article>
+      <article class="card"><h3>ePortal database</h3><p><code>database_url2</code> is the source for <code>emp_list</code> and <code>leave_app</code>. Its session dependency is <code>get_db2</code>.</p></article>
+      <article class="card"><h3>Device collectors</h3><p><code>cron.py</code>, <code>cron2.py</code>, <code>cron1108.py</code>, and <code>cron806.py</code> read ZKTeco logs, classify punches, then call the API over HTTP.</p></article>
+    </div>
+    <h3>Primary flow</h3>
+    <div class="flow">ZKTeco device → collector script → POST /attendance/ → eportal_attendance → POST /summary/ or /summary/cron/ → attendance_summary → leave overlay / voucher workflows</div>
+  </section>
+
+  <section>
+    <h2>Runtime configuration</h2>
+    <p>Values are loaded from <code>.env</code>. Keep that file local; it is ignored by Git.</p>
+    <table><thead><tr><th>Variable</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td><code>database_url</code>, <code>database_url2</code></td><td>Separate SQLAlchemy MySQL connections for attendance and ePortal data.</td></tr>
+      <tr><td><code>api_key</code></td><td>Shared API key expected in the <code>API-KEY</code> request header.</td></tr>
+      <tr><td><code>api-url</code>, <code>api-url-summary</code>, <code>api-url-voucher</code></td><td>Collector/API endpoint base URLs. <code>leave_update.py</code> also expects <code>api-url-leave</code>; confirm it is present before scheduling it.</td></tr>
+      <tr><td><code>device_ip</code>, <code>device_port</code> and <code>device_ip_1108</code>, <code>device_port_1108</code></td><td>ZKTeco device connection settings.</td></tr>
+      <tr><td><code>voucher_day</code></td><td>Optional weekday index; defaults to <code>5</code> (Saturday).</td></tr>
+      <tr><td><code>ENABLE_VOUCHERS</code></td><td>Feature switch for the complete voucher flow. It defaults to <code>false</code>; set it to <code>true</code> only to deliberately reactivate voucher routes, reward leave, and collector voucher checks.</td></tr>
+      <tr><td><code>ENABLE_D1_BACKUP</code>, <code>D1_BACKUP_URL</code>, <code>D1_BACKUP_TOKEN</code></td><td>Enable collector event backup and identify the deployed Cloudflare Worker. The token is the Worker secret value, not a Cloudflare API token.</td></tr>
+    </tbody></table>
+    <div class="warning"><strong>Startup behavior:</strong> importing and running <code>main.py</code> calls <code>metadata.create_all()</code> for both databases. This is convenient for bootstrap, but it is not a migration strategy. Use a controlled schema migration process before production schema changes.</div>
+  </section>
+
+  <section>
+    <h2>Data model and ownership</h2>
+    <table><thead><tr><th>Table / model</th><th>Connection</th><th>Role and important constraint</th></tr></thead><tbody>
+      <tr><td><code>eportal_attendance</code> / <code>Attendance</code></td><td>Attendance DB</td><td>Raw daily record. Unique on <code>(employee_id, date)</code>; may reference one voucher.</td></tr>
+      <tr><td><code>attendance_summary</code> / <code>Summary</code></td><td>Attendance DB</td><td>Derived employee-day display/report record. Unique on <code>(employee_id, date)</code>; links to raw attendance through <code>att_id</code>.</td></tr>
+      <tr><td><code>attendance_vouchers</code> / <code>Vouchers</code></td><td>Attendance DB</td><td>Issued/used attendance reward vouchers.</td></tr>
+      <tr><td><code>emp_list</code> / <code>Employee2</code></td><td>ePortal DB</td><td>Employee master and schedules. Treated as an external/source table.</td></tr>
+      <tr><td><code>leave_app</code> / <code>Leave</code></td><td>ePortal DB</td><td>Approved leave source. It can override an existing summary status.</td></tr>
+    </tbody></table>
+    <p>Both databases are queried during summary, leave, and voucher reads. There is no cross-database transaction, so operations that mutate more than one system need reconciliation and retry handling.</p>
+  </section>
+
+  <section>
+    <h2>API reference</h2>
+    <p>All enabled endpoints require <code>API-KEY</code>. Supply dates as <code>YYYY-MM-DD</code>. FastAPI’s interactive schema is normally available at <code>/docs</code> when the application can start. Voucher routes are not mounted while <code>ENABLE_VOUCHERS</code> is false; the voucher table and nullable attendance link remain only for historical compatibility.</p>
+    <table><thead><tr><th>Route</th><th>Methods</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td><code>/attendance/</code></td><td>POST, GET</td><td>Bulk upsert collector payloads; list/filter raw attendance.</td></tr>
+      <tr><td><code>/attendance/custom-time/</code></td><td>POST</td><td>Recalculate all attendance entries on one date against supplied regular in/out times.</td></tr>
+      <tr><td><code>/attendance/check-voucher/</code></td><td>POST</td><td>Check whether an employee-day is associated with a voucher.</td></tr>
+      <tr><td><code>/summary/</code>, <code>/summary/cron/</code></td><td>POST</td><td>Build/refresh summaries from attendance and employee schedules. The cron variant uses a broader worker selection.</td></tr>
+      <tr><td><code>/summary/</code>, <code>/summary/count</code>, <code>/summary/report/</code></td><td>GET</td><td>List summaries, per-employee status counts, and monthly lateness/undertime metrics.</td></tr>
+      <tr><td><code>/summary/</code></td><td>PUT</td><td>Update summary status, remarks, and optional checkout status.</td></tr>
+      <tr><td><code>/leave-app/</code>, <code>/leave-app/report/</code></td><td>GET</td><td>Read approved leave and leave reports from ePortal.</td></tr>
+      <tr><td><code>/leave-app/</code></td><td>POST</td><td>Overlay approved leave/official business/PARSO status onto existing summaries.</td></tr>
+      <tr><td><code>/leave-app/reward/</code></td><td>POST</td><td>Create a Perfect Attendance Reward Saturday Off leave record.</td></tr>
+      <tr><td><code>/voucher/...</code></td><td>GET, POST, PUT</td><td>Issue, list, search, apply, cancel, bulk apply, and generate reward vouchers. Mounted only when <code>ENABLE_VOUCHERS=true</code>.</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>Scheduled collector behavior</h2>
+    <p><strong>What fetches from the device:</strong> no FastAPI service calls ZKTeco in the deployed API route. The standalone collector scripts <code>cron.py</code>, <code>cron2.py</code>, <code>cron1108.py</code>, and <code>cron806.py</code> instantiate <code>zk.ZK</code>, connect to the configured device, disable it, call <code>conn.get_attendance()</code>, then re-enable and disconnect it. They send the prepared payload to <code>POST /attendance/</code>. The API-side <code>attendance_service.batch_insert_update_logs()</code> persists that payload; <code>summary_service</code>, <code>leave_service</code>, and <code>voucher_service</code> work from database records rather than from the device.</p>
+    <ul>
+      <li>Collectors disable a biometric device while reading all logs, retain a lookback window (currently one day in the runnable blocks), identify punch <code>0</code> as time-in and every other punch as time-out, then re-enable/disconnect.</li>
+      <li>The first time-in is retained; later time-out punches replace the saved time-out. The payload is grouped as <code>{ employee_id: { YYYY-MM-DD: punch_data } }</code>.</li>
+      <li>The API upsert only changes time-out, checkout status, and undertime for an existing employee-day. It preserves the original time-in, status, and lateness.</li>
+      <li>Current attendance rules are embedded in the collectors: regular 09:00–18:00, Friday 17:00/17:30 variants, Saturday 17:00, and Half Day thresholds. The 15:00 voucher target is inactive while vouchers are disabled. Treat these as business rules, not generic device logic.</li>
+    </ul>
+    <h3>Time-log classification rules</h3>
+    <table><thead><tr><th>Rule</th><th>Current collector behavior</th></tr></thead><tbody>
+      <tr><td>Time-in</td><td>Before <code>09:01</code>: <code>On time</code>. From <code>09:01</code> to before <code>11:00</code>: <code>Late</code>, with minutes measured from <code>09:00</code>. From <code>11:00</code> onward: <code>Half Day</code>; arrivals after <code>13:00</code> retain a lateness value measured from <code>13:00</code>.</td></tr>
+      <tr><td>Regular time-out</td><td>Target is <code>18:00</code>. A checkout before the target is <code>Undertime</code> with the minutes short; at or after target is <code>On time</code>.</td></tr>
+      <tr><td>Friday time-out</td><td>A time-in before <code>08:01</code> sets a <code>17:00</code> target. A time-in from <code>08:01</code> through <code>08:30</code> sets <code>17:30</code>. Otherwise the regular <code>18:00</code> target remains.</td></tr>
+      <tr><td>Saturday time-out</td><td>Target is <code>17:00</code>, or <code>15:00</code> when a voucher is already associated with that attendance record. Voucher checks happen only for an early Saturday checkout.</td></tr>
+      <tr><td>Half-day checkout</td><td>In the current changed collector rules, a time-out at or before <code>13:30</code> is marked <code>Half Day</code> and does not store undertime minutes.</td></tr>
+      <tr><td>Missing/incomplete data</td><td>A time-out before any saved time-in is ignored. A new employee-day without a time-in is not inserted. Existing records can later receive a time-out through the upsert.</td></tr>
+    </tbody></table>
+    <div class="warning"><strong>Rule source:</strong> these values are duplicated in collector scripts. The currently modified <code>cron2.py</code> uses the 13:30 half-day threshold and inclusive Friday minute boundaries described above; review it with HR before copying its behavior elsewhere.</div>
+    <div class="warning"><strong>Schedule explicitly:</strong> this repository does not configure Windows Task Scheduler, cron, Docker, or a service manager. Define one authoritative production schedule and log success/failure outside these scripts.</div>
+  </section>
+
+  <section>
+    <h2>Developer notes and review findings</h2>
+    <div class="risk"><strong>Fix before exposing beyond a trusted internal network:</strong> <code>main.py</code> enables credentialed CORS with wildcard origins. Browsers reject or mishandle this combination, and it is unsafe as an access policy. Use an explicit allowlist, HTTPS, and a stronger identity/authorization model than one shared API key.</div>
+    <table><thead><tr><th>Priority</th><th>Finding</th><th>Developer action</th></tr></thead><tbody>
+      <tr><td><span class="tag">High</span></td><td>Routers wrap broad exceptions and return raw exception text in HTTP 500 responses.</td><td>Log a correlation ID and server-side exception; return a stable generic client error. Do not expose database, device, or internal HTTP details.</td></tr>
+      <tr><td><span class="tag">High</span></td><td><code>use_multiple_vouchers</code> updates an attendance record and voucher without validating ownership, expiry, unused state, attendance status, or an existing voucher assignment.</td><td>Reuse the validation rules from the single-voucher path and make the bulk operation atomic and idempotent.</td></tr>
+      <tr><td><span class="tag">High</span></td><td><code>check_voucher</code> indexes the result of <code>.first()</code> without checking for no matching attendance record.</td><td>Return <code>false</code> when no row exists; otherwise an unrecognized employee-day produces a server error.</td></tr>
+      <tr><td><span class="tag">Medium</span></td><td>Summary creation performs a query per candidate summary row and its result serializer assumes every summary employee exists in <code>emp_list</code>.</td><td>Batch-load existing keys and handle missing employee master data so one stale ID cannot fail an entire page.</td></tr>
+      <tr><td><span class="tag">Medium</span></td><td>Type consistency is uneven: date/time query parameters and body fields are often strings; integer/date columns are searched with <code>ilike</code>.</td><td>Use Pydantic <code>date</code>/<code>time</code> fields and typed FastAPI query parameters; validate page/page_size bounds.</td></tr>
+      <tr><td><span class="tag">Medium</span></td><td>Leave overlay only changes summaries that already exist; it skips Sundays but does not apply an employee’s work schedule or a holiday calendar.</td><td>Confirm that behavior with HR, then centralize calendar/schedule policy before changing reporting results.</td></tr>
+      <tr><td><span class="tag">Medium</span></td><td>Voucher generation contains a hard-coded Cebu employee-ID exclusion list.</td><td>Move eligibility rules to configuration or an explicit employee attribute, with an audit trail.</td></tr>
+      <tr><td><span class="tag">Low</span></td><td>Several collectors duplicate near-identical logic. <code>cron2.py</code> has uncommitted rule changes, while <code>cron806.py</code> has the same current content hash as it.</td><td>Choose a single tested collector module and pass device configuration as arguments. Preserve the current business-rule change until HR validates it.</td></tr>
+      <tr><td><span class="tag">Low</span></td><td><code>Employee2</code> declares <code>created_at</code> twice, so the latter declaration wins in the ORM mapping.</td><td>Correct the model only after comparing it to the live ePortal schema; this source table should not be altered accidentally.</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>Safe local development</h2>
+    <ol>
+      <li>Create and activate a virtual environment, then run <code>pip install -r requirements.txt</code>.</li>
+      <li>Copy/configure a local <code>.env</code> with non-production database and device endpoints. Never commit it.</li>
+      <li>Run <code>uvicorn main:app --reload</code>. This imports the models and may create missing mapped tables, so point it only at an approved development database.</li>
+      <li>Use <code>http://127.0.0.1:8000/docs</code> for authenticated endpoint checks. Do not run collector scripts against a production device while developing rules.</li>
+      <li>Before release, run <code>python -m compileall -q -f .</code>, exercise each write path with isolated fixture data, verify summaries after the collector and leave runs, and check Task Scheduler/service logs.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Optional Cloudflare backup flow</h2>
+    <p>The D1-only backup scaffold is now included under <code>cloudflare_d1/</code>:</p>
+    <div class="flow">ZKTeco → collector → POST /attendance/ (primary) → Attendance DB<br>                             ↘ HTTPS backup endpoint → Cloudflare Worker → D1 (attendance_events)</div>
+    <ul>
+      <li>Keep the existing Attendance API as the operational source of truth. A temporary Cloudflare outage must not prevent local collection or primary attendance storage.</li>
+      <li>Each collector now sends normalized events to the Worker when <code>ENABLE_D1_BACKUP=true</code>. The event hash is the D1 primary key, so retries of the same snapshot are ignored.</li>
+      <li><code>cron_d1_backup.py</code> also archives every unprocessed device punch in <code>attendance_raw_events</code>, including its original timestamp, punch code, and available ZKTeco fields. This is separate from the processed daily <code>attendance_events</code> table.</li>
+      <li>Put Cloudflare credentials in the Worker secret store; do not put a Cloudflare API token in the collector’s <code>.env</code>. Authenticate collector requests with a dedicated shared secret or HMAC signature.</li>
+      <li>The backup request is best-effort and is intentionally isolated from the primary insert. A failed request is printed by the collector; it is not yet a durable retry queue.</li>
+      <li><code>cron_d1_backup.py</code> is an optional independent collector: it reads the two configured ZKTeco devices (<code>device_ip/device_port</code> and <code>device_ip_1108/device_port_1108</code>) concurrently over separate device connections, then sends only to D1, never to <code>POST /attendance/</code>. Use the <code>D1_BACKUP_DEVICE_IP</code>/<code>D1_BACKUP_DEVICE_PORT</code> and <code>D1_BACKUP_DEVICE_IP_1108</code>/<code>D1_BACKUP_DEVICE_PORT_1108</code> overrides when needed, plus <code>D1_BACKUP_DAYS</code>.</li>
+    </ul>
+    <h3>Deploy the Worker</h3>
+    <ol>
+      <li>From <code>cloudflare_d1/</code>, use the existing <code>d1_eportal_attendance</code> binding in <code>wrangler.toml</code>; do not create a second database.</li>
+      <li>Apply the schema with <code>npx wrangler d1 execute d1_eportal_attendance --remote --file=schema.sql</code>.</li>
+      <li>Set the Worker secret with <code>npx wrangler secret put BACKUP_TOKEN</code>, then deploy with <code>npx wrangler deploy</code>.</li>
+      <li>Set the collector environment values <code>ENABLE_D1_BACKUP=true</code>, <code>D1_BACKUP_URL=https://&lt;worker-host&gt;/attendance-events</code>, and the same <code>D1_BACKUP_TOKEN</code>. Set <code>D1_BACKUP_DAYS=all</code> only when backfilling every activity retained by a device; otherwise use a bounded lookback. Test <code>/health</code> and one fixture batch before scheduling production collectors.</li>
+    </ol>
+    <h3>Run the backup cron every five minutes (Windows)</h3>
+    <p>Create a Task Scheduler task whose action runs <code>python.exe cron_d1_backup.py</code>, with “Start in” set to the project directory. Set the trigger to <strong>Daily</strong> with <strong>Repeat task every 5 minutes</strong> for <strong>1 day</strong>. In <em>Settings</em>, choose <strong>Do not start a new instance</strong> if the previous run is still running. Run it under an account that can reach both ZKTeco devices and the Worker URL.</p>
+    <pre><code>schtasks /Create /TN "Attendance D1 Backup (5 min)" /SC MINUTE /MO 5 /TR "C:\Path\To\Python.exe D:\LocalFiles\Desktop\DEV\attendance_system\cron_d1_backup.py" /F</code></pre>
+    <p>Replace the Python path with the interpreter containing this project’s dependencies. Confirm <code>ENABLE_D1_BACKUP=true</code>, <code>D1_BACKUP_URL</code>, and <code>D1_BACKUP_TOKEN</code> are available to the scheduled task; Task Scheduler does not always inherit the interactive shell environment.</p>
+    <h3>D1 schema error recovery</h3>
+    <p>If D1 reports <code>no such table: main.attendance_events</code> while creating an index, only the index statement was submitted. Apply the complete schema first; it creates the table before either index:</p>
+    <pre><code>cd cloudflare_d1
+npx wrangler d1 execute d1_eportal_attendance --remote --file=schema.sql
+npx wrangler d1 execute d1_eportal_attendance --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name='attendance_events';"</code></pre>
+    <p>The verification query must return <code>attendance_events</code>. If using the Cloudflare dashboard SQL editor, paste the entire contents of <code>schema.sql</code> in order rather than running an index fragment by itself.</p>
+    <div class="warning"><strong>Before production:</strong> do not run the independent collector at the same time as another collector against one ZKTeco device; schedule it with an offset because device connections may contend. Confirm retention/privacy requirements and add a durable local outbox if “backup” must guarantee eventual delivery during Cloudflare outages. Do not send an employee’s full personal record when the attendance event fields are sufficient.</div>
+  </section>
+
+  <section>
+    <h2>Repository state when these notes were written</h2>
+    <p>The pre-existing working tree had a modified <code>cron2.py</code> and untracked <code>cron1108.py</code> and <code>cron806.py</code>. This document does not modify or normalize those files. Python compilation completed successfully; no live database, biometric device, authenticated API flow, or scheduled-task run was performed as part of the inspection.</p>
+  </section>
+</main>
+</body>
+</html>

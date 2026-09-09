@@ -14,6 +14,8 @@ import services.attendance_service as attendanceService
 from sqlalchemy import tuple_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert
+from config.features import VOUCHERS_ENABLED
+from services.d1_backup import backup_attendance_payload
 # Initialize DB session
 import time
 
@@ -143,7 +145,7 @@ def fetch_logs_for_past_days(conn, db, days):
             is_saturday = log_date.strftime("%A") == "Saturday"
             is_voucher = False
 
-            if(is_saturday and time_out < datetime.strptime('17:00:00', '%H:%M:%S').time()):
+            if VOUCHERS_ENABLED and (is_saturday and time_out < datetime.strptime('17:00:00', '%H:%M:%S').time()):
 
                 voucher = db.query(Attendance.voucher_id).filter(
                     Attendance.employee_id == user_id,
@@ -167,6 +169,11 @@ def fetch_logs_for_past_days(conn, db, days):
         conn.disconnect()
 
     if employee_logs:
+        backup_result = backup_attendance_payload(
+            prepare_employee_logs(employee_logs), "cron.py", os.getenv("device_ip")
+        )
+        if backup_result.get("error"):
+            print(f"D1 backup failed: {backup_result['error']}")
         return batch_insert_update_logs(db, employee_logs)
 
     print(f"No attendance records for the past {days} days. Skipping database update.")
@@ -344,4 +351,4 @@ if __name__ == "__main__":
     end_time = time.time()
 
     total_time = end_time - start_time
-    print(f"Total execution time: {total_time} seconds") 
+    print(f"Total execution time: {total_time} seconds")

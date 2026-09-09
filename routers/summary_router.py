@@ -16,46 +16,8 @@ def insert_summary(
     start_date = str,
     end_date = str 
     ):
-    """
-    MANUAL TRIGGER FOR STATUS INSERTS - INCLUDES NO INFO STATUS 
-    """
     try:
-        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date)
-
-        data = [
-            {
-                "employee_id": row["employee_id"],
-                "att_id": row["att_id"],
-                "date": row["date"],
-                "time_in":row["time_in"],
-                "time_out":row["time_out"],
-                "status": row["status"],
-                "checkout_status": row["checkout_status"],
-            }
-            for row in response 
-        ]
-        
-        entries = summaryService.insert_summary(db, data) 
-
-        return {"detail": f"Summary logs inserted, {entries}"}
-    except HTTPException as e:
-        raise e  
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-    
-@router.post("/cron/", status_code=200, dependencies=[Depends(verify_key)])
-def insert_summary_cron(
-    db: Session = Depends(get_db),
-    db2: Session = Depends(get_db2),
-    start_date = str,
-    end_date = str 
-    ):
-    """
-    USED FOR AUTOMATIC STATUS INSERTS - DOESN'T INCLUDE NO INFO STATUS
-    USED IN CRON TASKS 
-    """
-    try:
-        response = attendanceService.fetch_attendance_cron(db,db2,start_date,end_date)
+        response = attendanceService.fetch_attendance_between_dates(db,db2,start_date,end_date) #first loop
 
         data = [
             {
@@ -70,7 +32,38 @@ def insert_summary_cron(
             for row in response #loop 2
         ]
         
-        entries = summaryService.insert_summary(db, data) 
+        entries = summaryService.insert_summary(db, data) # loop 3
+
+        return {"detail": f"Summary logs inserted, {entries}"}
+    except HTTPException as e:
+        raise e  
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+    
+@router.post("/cron/", status_code=200, dependencies=[Depends(verify_key)])
+def insert_summary_cron(
+    db: Session = Depends(get_db),
+    db2: Session = Depends(get_db2),
+    start_date = str,
+    end_date = str 
+    ):
+    try:
+        response = attendanceService.fetch_attendance_cron(db,db2,start_date,end_date) #first loop
+
+        data = [
+            {
+                "employee_id": row["employee_id"],
+                "att_id": row["att_id"],
+                "date": row["date"],
+                "time_in":row["time_in"],
+                "time_out":row["time_out"],
+                "status": row["status"],
+                "checkout_status": row["checkout_status"],
+            }
+            for row in response #loop 2
+        ]
+        
+        entries = summaryService.insert_summary(db, data) # loop 3
 
         return {"detail": f"Summary logs inserted, {entries}"}
     except HTTPException as e:
@@ -78,7 +71,7 @@ def insert_summary_cron(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@router.get("/",status_code=200, dependencies=[Depends(verify_key)]) 
+@router.get("/",status_code=200, dependencies=[Depends(verify_key)])  # DONEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 def get_summary(
     db1:Session = Depends(get_db),
     db2:Session = Depends(get_db2),
@@ -88,10 +81,6 @@ def get_summary(
     date_from: str = None,
     date_to: str = None,
     employee_id_filter: str = None):
-
-    """
-    DISPLAYS ATTENDANCE
-    """
     try:
         return summaryService.fetch_summary(db1,db2,page,page_size,search_query,date_from,date_to,employee_id_filter)
     except Exception as e:
@@ -106,9 +95,6 @@ def fetch_summary_count(
     date_to: str = None,
     employee_id_filter: str = None,
 ):
-    """
-    DISPLAYS ATTENDANCE STATUS COUNTS - USED IN EPORTAL ATTENDANCE SUMMARY
-    """
     try:
         summary_data = summaryService.fetch_count(
             db,
@@ -125,9 +111,6 @@ def fetch_summary_count(
 
 @router.put("/", status_code=200, dependencies=[Depends(verify_key)])
 def update_summary(updates: List[UpdateSummary], db: Session = Depends(get_db)):
-    """
-    API FOR MANUAL STATUS CHANGES
-    """
     try:
         updated_summary = summaryService.update_status(db,updates)
         return {"message": "Summary updated successfully", "summary": updated_summary}
@@ -141,9 +124,6 @@ def attendance_report(
     end_date: str = None,
     employee_id: str = None
 ):
-    """
-    GENERATES A REPORT OF ATTENDANCE - USED ALONG WITH LEAVE_REPORT (REPORT - IN EPORTAL)
-    """
     try:
         response = summaryService.attendanceReport(db, start_date, end_date, employee_id)
         return response

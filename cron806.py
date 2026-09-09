@@ -199,7 +199,7 @@ def check_voucher(user_id,log_date):
         return {"error": str(e)}
 #---------------------------------------------------------------
 def insert_attendance(data):
-    backup_result = backup_attendance_payload(data, "cron2.py", os.getenv("device_ip"))
+    backup_result = backup_attendance_payload(data, "cron806.py", os.getenv("device_ip_1108"))
     if backup_result.get("error"):
         print(f"D1 backup failed: {backup_result['error']}")
     url = os.getenv('api-url')

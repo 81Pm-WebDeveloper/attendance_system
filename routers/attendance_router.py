@@ -6,6 +6,7 @@ from db.database2 import get_db2
 from dotenv import load_dotenv
 import os
 from config.authentication import verify_key
+from config.features import VOUCHERS_ENABLED
 from schemas.attendance import CheckVoucher,CustomLog
 
 router = APIRouter()
@@ -22,8 +23,7 @@ load_dotenv()
 @router.post("/custom-time/",status_code=200, dependencies=[Depends(verify_key)])
 def custom_time(body: CustomLog,db:Session= Depends(get_db)):
     """
-    Custom time/Attendance Special cases 
-    FIX LOGIC CREATE FRONT-END
+    Custom time
     """
     if not body: 
         raise HTTPException(status_code=400, detail="No data passed")
@@ -38,7 +38,6 @@ def custom_time(body: CustomLog,db:Session= Depends(get_db)):
 def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
     """
     Insert attendance route
-    Call using Python script(Scheduled task / Cron)
     """
     if not data:
         raise HTTPException(status_code=400, detail="No attendance data provided.")
@@ -53,8 +52,10 @@ def insert_attendance(db: Session = Depends(get_db), data: dict = Body(...)):
 
 def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
     """
-    Vouhcer check trigger - used in CRON/Scheduled task
+    Voucher checker for One Central
     """
+    if not VOUCHERS_ENABLED:
+        raise HTTPException(status_code=404, detail="Voucher flow is disabled")
     try:
         response = attendanceService.check_voucher(db,body.employee_id,body.date)
         return response
@@ -80,16 +81,7 @@ def check_voucher(body: CheckVoucher,db:Session= Depends(get_db)):
 #     except Exception as e:
 #         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@router.get("/out-time/",dependencies=[Depends(verify_key)])
-def out_time(date:str,db:Session = Depends(get_db),db2:Session = Depends(get_db2)):
-    """
-    UNDER DEVELOPMENT - Returns out time for flexi days
-    """
-    try:
-        result = attendanceService.out_time(db,db2,date)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
 #DEPLOY
 @router.get("/",dependencies=[Depends(verify_key)])
 def get_attendance(
@@ -102,9 +94,6 @@ def get_attendance(
     employee_id_filter: str = None,
     db: Session = Depends(get_db)
 ):
-    """
-    GET ATTENDANCE
-    """    
     return attendanceService.fetch_attendance(db, page, page_size, search_query,date_from,date_to,status_filter,employee_id_filter)
 
     

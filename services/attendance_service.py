@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 from math import ceil
 from sqlalchemy.dialects.mysql import insert
 from datetime import timedelta
-from datetime import time
+
 load_dotenv()
                
 
@@ -99,8 +99,7 @@ def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_ti
 
     in_time_obj = datetime.strptime(in_time, "%H:%M:%S").time()
     out_time_obj = datetime.strptime(out_time, "%H:%M:%S").time()
-    half_day = datetime.strptime("13:30:00","%H:%M:%S").time()
-    
+
     for att in attendance_logs:
 
         if att.time_in:
@@ -113,11 +112,7 @@ def special_case(db: Session, date_input: str, in_time: str = '09:00:00', out_ti
                 att.late_min = late_min
 
         if att.time_out:
-            if att.time_out <= half_day:
-                att.checkout_status = 'Half Day'
-                att.undertime_min = None
-                
-            elif att.time_out >= out_time_obj:
+            if att.time_out >= out_time_obj:
                 att.checkout_status = 'On time'
                 att.undertime_min = None
             else:
@@ -372,49 +367,6 @@ def check_voucher(db: Session, user_id: int, log_date: date):
                    .first()[0] or False)
 
 
-def determine_time_out(time_in):
-    if time_in < time(8, 0):
-        return time(17, 0)
-    elif time_in < time(8, 30):
-        return time(17, 30)
-    else:
-        return time(18, 0)
-    
-def out_time(db:Session, db2:Session, date:date):
-    attendance_data = db.query(
-        Attendance.employee_id,
-        Attendance.time_in
-    ).filter(Attendance.date == date).all()
-
-    emp_ids = [row.employee_id for row in attendance_data]
-
-    employees = db2.query(
-        Employee2.empID,
-        Employee2.fullname,
-        Employee2.branch,
-        Employee2.department
-    ).filter(Employee2.empID.in_(emp_ids)).all()
-
-    attendance_map = {}
-    for att in attendance_data:
-        if att.employee_id not in attendance_map:
-            attendance_map[att.employee_id] = []
-        attendance_map[att.employee_id].append(att)
-    results = []
-
-    for emp in employees:
-        for att in attendance_map.get(emp.empID, []):
-            time_out = determine_time_out(att.time_in)
-            results.append({
-                "empID": emp.empID,
-                "fullname": emp.fullname,
-                "department": emp.department,
-                "branch": emp.branch,
-                "time_in": att.time_in,
-                "time_out": time_out
-            })
-    return results
-
 def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date: date):
     today = date.today().strftime('%a').upper()
 
@@ -442,7 +394,6 @@ def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date
     ).filter(Attendance.date.between(start_date, end_date)).all()
 
     attendance_dict = {}
-
     for att in attendance_data:
         if att.employee_id not in attendance_dict:
             attendance_dict[att.employee_id] = []
@@ -450,7 +401,7 @@ def fetch_attendance_cron(db1: Session, db2: Session, start_date: date, end_date
 
     result = []
     for employee in employees:
-        if employee.empID in attendance_dict:  
+        if employee.empID in attendance_dict:  # Employee has existing attendance
             for att in attendance_dict[employee.empID]:
                 result.append({
                     "employee_id": employee.empID,

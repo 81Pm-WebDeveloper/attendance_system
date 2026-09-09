@@ -18,9 +18,3 @@ This project is a simple **attendance system** built using **FastAPI**, integrat
 - **python -m venv venv**
 - **activate venv - Google mo nalang**
 - **pip install -r requirements.txt** 
-
-
-
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
-
-/docs to see API REQ/RES/SCHEMAS 
