@@ -1,0 +1,13 @@
+name = "attendance-d1-backup-oc"
+main = "src/index.js"
+compatibility_date = "2026-09-09"
+
+# ONE CENTRAL's dedicated Worker and D1 database. Deploy this configuration
+# only while authenticated to the Cloudflare account that owns this database.
+[[d1_databases]]
+binding = "DB"
+database_name = "d1_eportal_attendance_oc"
+database_id = "986bffb0-3874-45b3-bff6-6e5bdaae930a"
+
+[vars]
+# Store BACKUP_TOKEN with: wrangler secret put BACKUP_TOKEN --config wrangler.oc.toml

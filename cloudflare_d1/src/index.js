@@ -30,18 +30,24 @@ export default {
       return json({ error: `events must contain 1-${MAX_EVENTS} items` }, 400);
     }
 
+    // The collector reports its connector for diagnostics.  Dedicated OC and
+    // CEBU Worker URLs each have their own DB binding, so this Worker always
+    // writes to its own DB binding.
+    const connector = String(body.connector || "primary").toLowerCase();
+
     const statements = [];
     for (const event of body.events) {
       if (!event || typeof event !== "object" || !event.source_hash || !event.employee_id ||
-          !event.device_id || !event.event_timestamp || !event.raw_json) {
-        return json({ error: "Each raw event requires source_hash, device_id, employee_id, event_timestamp, and raw_json" }, 400);
+          !event.device_id || !event.event_timestamp || !event.raw_json ||
+          !Number.isInteger(event.biometric_uid) || event.biometric_uid < 0) {
+        return json({ error: "Each raw event requires source_hash, device_id, biometric_uid, employee_id, event_timestamp, and raw_json; biometric_uid must be a non-negative integer" }, 400);
       }
       statements.push(env.DB.prepare(`
         INSERT OR IGNORE INTO attendance_raw_events
-          (source_hash, device_id, employee_id, event_timestamp, punch, status, verify_type, workcode, raw_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (source_hash, device_id, biometric_uid, employee_id, event_timestamp, punch, status, verify_type, workcode, raw_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
-        String(event.source_hash), String(event.device_id), String(event.employee_id), String(event.event_timestamp),
+        String(event.source_hash), String(event.device_id), event.biometric_uid, String(event.employee_id), String(event.event_timestamp),
         event.punch ?? null, event.status ?? null, event.verify_type ?? null, event.workcode ?? null,
         String(event.raw_json),
       ));
@@ -50,7 +56,7 @@ export default {
     try {
       const results = await env.DB.batch(statements);
       const inserted = results.reduce((count, result) => count + (result.meta?.changes || 0), 0);
-      return json({ ok: true, received: body.events.length, inserted });
+      return json({ ok: true, connector, received: body.events.length, inserted });
     } catch (error) {
       console.error("D1 backup insert failed", error);
       return json({ error: "D1 insert failed" }, 500);

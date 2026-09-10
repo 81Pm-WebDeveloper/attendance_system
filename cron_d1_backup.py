@@ -22,9 +22,19 @@ load_dotenv()
 
 def _raw_event(log, device_id: str) -> dict:
     """Preserve the original ZKTeco activity fields without attendance rules."""
+    # ZKTeco assigns this UID as it accepts the activity.  It is the only
+    # sequence key we use for identity and ordering; device timestamps can be
+    # corrected, duplicated, or arrive out of order.
+    try:
+        biometric_uid = int(getattr(log, "uid"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Attendance log from {device_id} has no valid device UID") from exc
+    if biometric_uid < 0:
+        raise ValueError(f"Attendance log from {device_id} has a negative device UID: {biometric_uid}")
+
     timestamp = log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
     raw = {
-        "uid": getattr(log, "uid", None),
+        "uid": biometric_uid,
         "user_id": str(log.user_id),
         "timestamp": timestamp,
         "punch": getattr(log, "punch", None),
@@ -34,12 +44,16 @@ def _raw_event(log, device_id: str) -> dict:
     }
     raw = {key: value for key, value in raw.items() if value is not None}
     source_hash = hashlib.sha256(
-        json.dumps({"device_id": device_id, "event": raw}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(
+            {"device_id": device_id, "biometric_uid": biometric_uid},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
     ).hexdigest()
     return {
         "source_hash": source_hash,
         "device_id": device_id,
-        "biometric_uid": getattr(log, "uid", None),
+        "biometric_uid": biometric_uid,
         "employee_id": str(log.user_id),
         "event_timestamp": timestamp,
         "punch": getattr(log, "punch", None),
@@ -103,36 +117,70 @@ def fetch_logs_for_backup(conn, days: int | None, device_id: str) -> tuple[dict,
             elif result:
                 record["checkout_status"] = result
 
+    # The device UID is its append/input sequence.  Do not let a corrected or
+    # out-of-order timestamp change the order uploaded to D1.
+    raw_events.sort(key=lambda event: event["biometric_uid"])
     return prepare_employee_logs(employee_logs), raw_events
 
 
-def _configured_devices() -> list[tuple[str, str, int]]:
-    """Return both device pairs, allowing D1-specific overrides in .env."""
+def _configured_devices() -> list[tuple[str, str, int, str]]:
+    """Return configured D1 device connectors without changing legacy names.
+
+    In addition to the original primary and 1108 pairs, a new device can use
+    D1_BACKUP_DEVICE_IP_<LABEL> and D1_BACKUP_DEVICE_PORT_<LABEL>.  Labels are
+    read from the environment, so a new connector does not require code edits.
+    """
     candidates = [
         (
             "primary",
             os.getenv("D1_BACKUP_DEVICE_IP") or os.getenv("device_ip"),
             os.getenv("D1_BACKUP_DEVICE_PORT") or os.getenv("device_port", "4370"),
+            "primary",
         ),
         (
             "1108",
             os.getenv("D1_BACKUP_DEVICE_IP_1108") or os.getenv("device_ip_1108"),
             os.getenv("D1_BACKUP_DEVICE_PORT_1108") or os.getenv("device_port_1108", "4370"),
+            "primary",
         ),
     ]
+
+    connector_prefix = "D1_BACKUP_DEVICE_IP_"
+    for key in sorted(os.environ):
+        if not key.startswith(connector_prefix):
+            continue
+        label = key[len(connector_prefix):]
+        ip = os.getenv(key)
+        if not label or not ip:
+            continue
+        port = os.getenv(f"D1_BACKUP_DEVICE_PORT_{label}", "4370")
+        connector = os.getenv(f"D1_BACKUP_DEVICE_CONNECTOR_{label}", "primary").strip().lower()
+        candidates.append((label.lower(), ip, port, connector))
+
     devices = []
-    seen = set()
-    for label, ip, port in candidates:
+    seen = {}
+    for label, ip, port, connector in candidates:
         if not ip:
             continue
-        device = (label, ip, int(port))
-        if (ip, int(port)) not in seen:
+        try:
+            device_port = int(port)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid D1 backup port for device '{label}': {port!r}") from exc
+        device = (label, ip, device_port, connector)
+        endpoint = (ip, device_port)
+        if endpoint not in seen:
             devices.append(device)
-            seen.add((ip, int(port)))
+            seen[endpoint] = (label, connector)
+        elif seen[endpoint][1] != connector:
+            existing_label, existing_connector = seen[endpoint]
+            raise ValueError(
+                f"D1 backup devices '{existing_label}' and '{label}' use the same endpoint "
+                f"but different connectors ({existing_connector!r} and {connector!r})"
+            )
     return devices
 
 
-def _backup_device(label: str, device_ip: str, device_port: int, days: int | None) -> dict:
+def _backup_device(label: str, device_ip: str, device_port: int, connector: str, days: int | None) -> dict:
     """Read and upload one device without sharing its connection with another job."""
     try:
         conn = connect_to_device(device_ip, device_port)
@@ -146,10 +194,11 @@ def _backup_device(label: str, device_ip: str, device_port: int, days: int | Non
 
         if not raw_events:
             return {"device": label, "ip": device_ip, "uploaded": 0, "message": "No attendance logs"}
-        raw_result = backup_raw_attendance_events(raw_events)
+        raw_result = backup_raw_attendance_events(raw_events, connector)
         return {
             "device": label,
             "ip": device_ip,
+            "connector": connector,
             "raw": raw_result,
         }
     except Exception as exc:

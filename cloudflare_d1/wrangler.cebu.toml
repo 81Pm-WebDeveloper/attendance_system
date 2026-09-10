@@ -1,0 +1,13 @@
+name = "attendance-d1-backup-cebu"
+main = "src/index.js"
+compatibility_date = "2026-09-09"
+
+# CEBU's dedicated Worker and D1 database. Deploy this configuration only
+# while authenticated to the Cloudflare account that owns this database.
+[[d1_databases]]
+binding = "DB"
+database_name = "d1_eportal_attendance_cebu"
+database_id = "c73b198b-a50a-4399-bc4e-9cc1662127bf"
+
+[vars]
+# Store BACKUP_TOKEN with: wrangler secret put BACKUP_TOKEN --config wrangler.cebu.toml
