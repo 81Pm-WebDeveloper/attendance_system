@@ -1,9 +1,6 @@
-"""Best-effort upload of normalized collector events to a Cloudflare Worker."""
+"""Best-effort upload of raw device activities to a Cloudflare Worker."""
 
-import hashlib
-import json
 import os
-from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
@@ -16,39 +13,6 @@ load_dotenv()
 MAX_EVENTS_PER_REQUEST = 1000
 
 
-def _event_id(event: dict[str, Any]) -> str:
-    # Collector name is metadata, not event identity. This deduplicates retries
-    # even if the same device payload is replayed by another collector wrapper.
-    identity = {key: value for key, value in event.items() if key != "collector"}
-    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _events_from_payload(payload: dict[str, Any], collector: str, device_id: str | None) -> list[dict[str, Any]]:
-    events = []
-    for employee_id, dates in payload.items():
-        if not isinstance(dates, dict):
-            continue
-        for attendance_date, log_data in dates.items():
-            if not isinstance(log_data, dict):
-                continue
-            event = {
-                "device_id": device_id or "unknown",
-                "collector": collector,
-                "employee_id": str(employee_id),
-                "attendance_date": str(attendance_date),
-                "time_in": log_data.get("time-in"),
-                "time_out": log_data.get("time-out"),
-                "status": log_data.get("status"),
-                "checkout_status": log_data.get("checkout_status"),
-                "late_min": log_data.get("late_min"),
-                "undertime_min": log_data.get("undertime_min"),
-            }
-            event["source_hash"] = _event_id(event)
-            events.append(event)
-    return events
-
-
 def _backup_url(path: str) -> str | None:
     configured = os.getenv("D1_BACKUP_URL")
     if not configured:
@@ -57,7 +21,7 @@ def _backup_url(path: str) -> str | None:
     return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
 
-def _upload_events(events: list[dict[str, Any]], path: str) -> dict[str, Any]:
+def _upload_events(events: list[dict], path: str) -> dict:
     """Upload batches without making backup availability affect attendance writes."""
     if not D1_BACKUP_ENABLED:
         return {"disabled": True}
@@ -89,11 +53,11 @@ def _upload_events(events: list[dict[str, Any]], path: str) -> dict[str, Any]:
         return {"error": str(exc), "uploaded": 0, "events": len(events)}
 
 
-def backup_attendance_payload(payload: dict[str, Any], collector: str, device_id: str | None = None) -> dict[str, Any]:
-    """Upload normalized daily attendance events as a best-effort backup."""
-    return _upload_events(_events_from_payload(payload, collector, device_id), "/attendance-events")
+def backup_attendance_payload(payload: dict, collector: str, device_id: str | None = None) -> dict:
+    """Compatibility no-op: processed D1 backups were intentionally removed."""
+    return {"disabled": True, "reason": "Processed D1 backups were removed; raw activities use cron_d1_backup.py"}
 
 
-def backup_raw_attendance_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+def backup_raw_attendance_events(events: list[dict]) -> dict:
     """Upload unprocessed device punches as a best-effort backup."""
     return _upload_events(events, "/raw-attendance-events")

@@ -14,7 +14,7 @@ import time
 from dotenv import load_dotenv
 
 from config.features import D1_BACKUP_ENABLED
-from services.d1_backup import backup_attendance_payload, backup_raw_attendance_events
+from services.d1_backup import backup_raw_attendance_events
 from cron2 import connect_to_device, prepare_employee_logs, time_status, timeout_status
 
 load_dotenv()
@@ -39,6 +39,7 @@ def _raw_event(log, device_id: str) -> dict:
     return {
         "source_hash": source_hash,
         "device_id": device_id,
+        "biometric_uid": getattr(log, "uid", None),
         "employee_id": str(log.user_id),
         "event_timestamp": timestamp,
         "punch": getattr(log, "punch", None),
@@ -145,12 +146,10 @@ def _backup_device(label: str, device_ip: str, device_port: int, days: int | Non
 
         if not raw_events:
             return {"device": label, "ip": device_ip, "uploaded": 0, "message": "No attendance logs"}
-        processed_result = backup_attendance_payload(payload, "cron_d1_backup.py", device_ip)
         raw_result = backup_raw_attendance_events(raw_events)
         return {
             "device": label,
             "ip": device_ip,
-            "processed": processed_result,
             "raw": raw_result,
         }
     except Exception as exc:

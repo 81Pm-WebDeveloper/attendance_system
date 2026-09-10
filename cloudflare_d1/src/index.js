@@ -13,7 +13,7 @@ export default {
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ ok: true, service: "attendance-d1-backup" });
     }
-    if (request.method !== "POST" || !["/attendance-events", "/raw-attendance-events"].includes(url.pathname)) {
+    if (request.method !== "POST" || url.pathname !== "/raw-attendance-events") {
       return json({ error: "Not found" }, 404);
     }
     if (!env.BACKUP_TOKEN || request.headers.get("authorization") !== `Bearer ${env.BACKUP_TOKEN}`) {
@@ -32,37 +32,19 @@ export default {
 
     const statements = [];
     for (const event of body.events) {
-      if (!event || typeof event !== "object" || !event.source_hash || !event.employee_id) {
-        return json({ error: "Each event requires source_hash and employee_id" }, 400);
+      if (!event || typeof event !== "object" || !event.source_hash || !event.employee_id ||
+          !event.device_id || !event.event_timestamp || !event.raw_json) {
+        return json({ error: "Each raw event requires source_hash, device_id, employee_id, event_timestamp, and raw_json" }, 400);
       }
-      if (url.pathname === "/attendance-events") {
-        if (!event.attendance_date) {
-          return json({ error: "Each attendance event requires attendance_date" }, 400);
-        }
-        statements.push(env.DB.prepare(`
-          INSERT OR IGNORE INTO attendance_events
-            (source_hash, device_id, collector, employee_id, attendance_date,
-             time_in, time_out, status, checkout_status, late_min, undertime_min)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          String(event.source_hash), String(event.device_id || "unknown"), String(event.collector || "unknown"),
-          String(event.employee_id), String(event.attendance_date), event.time_in ?? null, event.time_out ?? null,
-          event.status ?? null, event.checkout_status ?? null, event.late_min ?? null, event.undertime_min ?? null,
-        ));
-      } else {
-        if (!event.device_id || !event.event_timestamp || !event.raw_json) {
-          return json({ error: "Each raw event requires device_id, event_timestamp, and raw_json" }, 400);
-        }
-        statements.push(env.DB.prepare(`
-          INSERT OR IGNORE INTO attendance_raw_events
-            (source_hash, device_id, employee_id, event_timestamp, punch, status, verify_type, workcode, raw_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          String(event.source_hash), String(event.device_id), String(event.employee_id), String(event.event_timestamp),
-          event.punch ?? null, event.status ?? null, event.verify_type ?? null, event.workcode ?? null,
-          String(event.raw_json),
-        ));
-      }
+      statements.push(env.DB.prepare(`
+        INSERT OR IGNORE INTO attendance_raw_events
+          (source_hash, device_id, employee_id, event_timestamp, punch, status, verify_type, workcode, raw_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        String(event.source_hash), String(event.device_id), String(event.employee_id), String(event.event_timestamp),
+        event.punch ?? null, event.status ?? null, event.verify_type ?? null, event.workcode ?? null,
+        String(event.raw_json),
+      ));
     }
 
     try {
