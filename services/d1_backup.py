@@ -90,7 +90,7 @@ def _upload_events(events: list[dict], path: str, connector: str = "primary") ->
             received += int(result.get("received", 0))
             inserted += int(result.get("inserted", 0))
         return {"ok": True, "received": received, "inserted": inserted}
-    except (requests.RequestException, ValueError) as exc:
+    except (requests.RequestException, ValueError, RuntimeError) as exc:
         # The primary attendance path must continue; the caller can log/retry this batch.
         error = str(exc)
         LOGGER.error(
