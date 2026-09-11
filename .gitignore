@@ -9,3 +9,4 @@
 /schemas/__pycache__
 /config/__pycache__
 script.py
+/error.log

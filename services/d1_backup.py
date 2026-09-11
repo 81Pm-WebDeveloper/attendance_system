@@ -1,6 +1,8 @@
 """Best-effort upload of raw device activities to a Cloudflare Worker."""
 
+import logging
 import os
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
@@ -11,6 +13,25 @@ from config.features import D1_BACKUP_ENABLED
 load_dotenv()
 
 MAX_EVENTS_PER_REQUEST = 1000
+ERROR_LOG_PATH = Path(__file__).resolve().parents[1] / "error.log"
+LOGGER = logging.getLogger("attendance_d1_backup")
+LOGGER.setLevel(logging.ERROR)
+LOGGER.propagate = False
+
+# The task scheduler may run without an interactive console.  Keep a single,
+# local error log that both the collector and Worker uploader can use.
+if not any(
+    isinstance(handler, logging.FileHandler)
+    and Path(handler.baseFilename).resolve() == ERROR_LOG_PATH
+    for handler in LOGGER.handlers
+):
+    error_handler = logging.FileHandler(ERROR_LOG_PATH, encoding="utf-8")
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    LOGGER.addHandler(error_handler)
 
 
 def _connector_setting(name: str, connector: str) -> str | None:
@@ -57,14 +78,28 @@ def _upload_events(events: list[dict], path: str, connector: str = "primary") ->
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
                 timeout=float(os.getenv("D1_BACKUP_TIMEOUT", "10")),
             )
-            response.raise_for_status()
+            if not response.ok:
+                # Worker errors contain useful configuration/schema details.
+                # Never log the Authorization header or backup token.
+                detail = response.text.strip().replace("\n", " ")[:1000]
+                raise RuntimeError(
+                    f"D1 Worker request failed for connector {connector!r}: "
+                    f"HTTP {response.status_code}; response={detail or '<empty>'}"
+                )
             result = response.json()
             received += int(result.get("received", 0))
             inserted += int(result.get("inserted", 0))
         return {"ok": True, "received": received, "inserted": inserted}
     except (requests.RequestException, ValueError) as exc:
         # The primary attendance path must continue; the caller can log/retry this batch.
-        return {"error": str(exc), "uploaded": 0, "events": len(events)}
+        error = str(exc)
+        LOGGER.error(
+            "D1 upload failed: connector=%s, events=%s, error=%s",
+            connector,
+            len(events),
+            error,
+        )
+        return {"error": error, "uploaded": 0, "events": len(events)}
 
 
 def backup_attendance_payload(payload: dict, collector: str, device_id: str | None = None) -> dict:

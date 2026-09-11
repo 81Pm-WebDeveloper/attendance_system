@@ -14,7 +14,7 @@ import time
 from dotenv import load_dotenv
 
 from config.features import D1_BACKUP_ENABLED
-from services.d1_backup import backup_raw_attendance_events
+from services.d1_backup import LOGGER, backup_raw_attendance_events
 from cron2 import connect_to_device, prepare_employee_logs, time_status, timeout_status
 
 load_dotenv()
@@ -225,6 +225,13 @@ def _backup_device(label: str, device_ip: str, device_port: int, connector: str,
             "raw": raw_result,
         }
     except Exception as exc:
+        LOGGER.exception(
+            "D1 backup device failed: device=%s, connector=%s, ip=%s, port=%s",
+            label,
+            connector,
+            device_ip,
+            device_port,
+        )
         return {"device": label, "ip": device_ip, "error": str(exc)}
 
 
@@ -236,7 +243,9 @@ def run_backup() -> dict:
     days = None if configured_days == "all" else max(0, int(configured_days))
     devices = _configured_devices()
     if not devices:
-        return {"error": "No device_ip/device_ip_1108 pair is configured"}
+        error = "No D1 backup device is configured"
+        LOGGER.error(error)
+        return {"error": error}
 
     # Each device has an independent network connection, so collect and upload
     # them concurrently. executor.map retains the configured-device order.
@@ -252,6 +261,7 @@ if __name__ == "__main__":
         result = run_backup()
         print(result)
     except Exception as exc:
+        LOGGER.exception("D1 backup collector failed")
         print(f"D1 backup collector failed: {exc}")
     finally:
         print(f"Total execution time: {time.time() - started:.2f} seconds")
