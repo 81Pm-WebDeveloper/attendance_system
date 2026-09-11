@@ -129,8 +129,8 @@ def _configured_devices() -> list[tuple[str, str, int, str]]:
     In addition to the original primary and 1108 pairs, a new device can use
     D1_BACKUP_DEVICE_IP_<LABEL> and D1_BACKUP_DEVICE_PORT_<LABEL>.  Labels are
     read from the environment, so a new connector does not require code edits.
-    OC and CEBU use dedicated, self-contained variable groups so one site's
-    device settings cannot be mistaken for the other's.
+    OC and CEBU use dedicated, self-contained IP/port groups.  Their Worker
+    routing is fixed by site, so it cannot be changed accidentally in .env.
     """
     candidates = [
         (
@@ -162,17 +162,7 @@ def _configured_devices() -> list[tuple[str, str, int, str]]:
             or os.getenv(f"D1_BACKUP_DEVICE_PORT_{site}")
             or "4370"
         )
-        site_connector = (
-            os.getenv(f"D1_BACKUP_{site}_CONNECTOR")
-            or os.getenv(f"D1_BACKUP_DEVICE_CONNECTOR_{site}")
-            or connector
-        ).strip().lower()
-        if site_connector not in {"primary", "oc", "cebu"}:
-            raise ValueError(
-                f"Invalid D1 backup connector for {site}: {site_connector!r}. "
-                "Use primary, oc, or cebu."
-            )
-        candidates.append((site.lower(), ip, port, site_connector))
+        candidates.append((site.lower(), ip, port, connector))
 
     connector_prefix = "D1_BACKUP_DEVICE_IP_"
     for key in sorted(os.environ):
