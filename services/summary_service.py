@@ -152,34 +152,74 @@ def fetch_summary(
             Employee2.company,
             Employee2.branch,
         )
-        .filter(Employee2.empID.in_([summary.employee_id for summary, _ in result]))
+        .filter(Employee2.status == "active")
         .order_by(Employee2.department) 
         .all()
     )
 
     employee_map = {employee.empID: employee for employee in employee_data}
-   
+
     sorted_result = sorted(
-        result, 
+        [row for row in result if row[0].employee_id in employee_map],
         key=lambda row: employee_map.get(row[0].employee_id).department if employee_map.get(row[0].employee_id) else ""
     )
 
+    is_single_day = date_from and date_to and date_from == date_to
+    existing_rows = {summary.employee_id: (summary, voucher_id) for summary, voucher_id in sorted_result}
+    response_rows = []
+
+    if is_single_day:
+        for employee in employee_data:
+            summary, voucher_id = existing_rows.get(employee.empID, (None, None))
+            response_rows.append({
+                "id": summary.id if summary else None,
+                "att_id": summary.att_id if summary else None,
+                "employee_id": employee.empID,
+                "date": summary.date if summary else date_from,
+                "time_in": summary.time_in if summary else None,
+                "time_out": summary.time_out if summary else None,
+                "status": summary.status if summary else "No info",
+                "checkout_status": summary.checkout_status if summary else None,
+                "remarks": summary.remarks if summary else None,
+                "employee_department": employee.department,
+                "employee_name": employee.fullname,
+                "employee_position": employee.position,
+                "company": f"{employee.company} ({employee.branch})",
+                "voucher_id": voucher_id,
+                "has_attendance_log": bool(summary and (summary.time_in or summary.time_out)),
+            })
+        status_summary = {}
+        for row in response_rows:
+            status = row["status"] or "No info"
+            status_summary[status] = status_summary.get(status, 0) + 1
+    else:
+        response_rows = [
+            {
+                "id": summary.id,
+                "att_id": summary.att_id,
+                "employee_id": summary.employee_id,
+                "date": summary.date,
+                "time_in": summary.time_in,
+                "time_out": summary.time_out,
+                "status": summary.status,
+                "checkout_status": summary.checkout_status,
+                "remarks": summary.remarks,
+                "employee_department": employee_map[summary.employee_id].department,
+                "employee_name": employee_map[summary.employee_id].fullname,
+                "employee_position": employee_map[summary.employee_id].position,
+                "company": f"{employee_map[summary.employee_id].company} ({employee_map[summary.employee_id].branch})",
+                "voucher_id": voucher_id,
+                "has_attendance_log": bool(summary.time_in or summary.time_out),
+            }
+            for summary, voucher_id in sorted_result
+        ]
+
     return {
-        "total_records": total_count,
+        "total_records": len(response_rows),
         "page": page if page_size else 1,  
         "limit": limit,
         "status_summary": status_summary,
-        "results": [
-            {
-                **summary.__dict__,
-                "employee_department": employee_map.get(summary.employee_id).department,
-                "employee_name": employee_map.get(summary.employee_id).fullname,
-                "employee_position": employee_map.get(summary.employee_id).position,
-                "company": f"{employee_map.get(summary.employee_id).company} ({employee_map.get(summary.employee_id).branch})",
-                "voucher_id": voucher_id  
-            }
-            for summary, voucher_id in sorted_result  
-        ],
+        "results": response_rows,
     }
 
 
@@ -291,10 +331,25 @@ def update_status(db: Session, updates: List[UpdateSummary]):
     failed_updates = []
 
     for data in updates:
-        summary = db.query(Summary).filter(Summary.id == data.id).first()
+        summary = db.query(Summary).filter(Summary.id == data.id).first() if data.id else None
+
+        if not summary and data.employee_id and data.date:
+            summary = db.query(Summary).filter(
+                Summary.employee_id == data.employee_id,
+                Summary.date == data.date,
+            ).first()
+
+        if not summary and data.employee_id and data.date:
+            summary = Summary(
+                employee_id=data.employee_id,
+                date=data.date,
+                status="No info",
+            )
+            db.add(summary)
+            db.flush()
 
         if not summary:
-            failed_updates.append(data.id)
+            failed_updates.append(data.id or data.employee_id)
             continue  
 
         summary.status = data.status

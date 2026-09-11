@@ -129,6 +129,8 @@ def _configured_devices() -> list[tuple[str, str, int, str]]:
     In addition to the original primary and 1108 pairs, a new device can use
     D1_BACKUP_DEVICE_IP_<LABEL> and D1_BACKUP_DEVICE_PORT_<LABEL>.  Labels are
     read from the environment, so a new connector does not require code edits.
+    OC and CEBU use dedicated, self-contained variable groups so one site's
+    device settings cannot be mistaken for the other's.
     """
     candidates = [
         (
@@ -145,11 +147,42 @@ def _configured_devices() -> list[tuple[str, str, int, str]]:
         ),
     ]
 
+    # Dedicated sites are intentionally read before the extensible legacy
+    # pattern.  The fallback keeps existing scheduled-task environments valid
+    # while deployments move to D1_BACKUP_<SITE>_DEVICE_* names.
+    for site, connector in (("OC", "oc"), ("CEBU", "cebu")):
+        ip = (
+            os.getenv(f"D1_BACKUP_{site}_DEVICE_IP")
+            or os.getenv(f"D1_BACKUP_DEVICE_IP_{site}")
+        )
+        if not ip:
+            continue
+        port = (
+            os.getenv(f"D1_BACKUP_{site}_DEVICE_PORT")
+            or os.getenv(f"D1_BACKUP_DEVICE_PORT_{site}")
+            or "4370"
+        )
+        site_connector = (
+            os.getenv(f"D1_BACKUP_{site}_CONNECTOR")
+            or os.getenv(f"D1_BACKUP_DEVICE_CONNECTOR_{site}")
+            or connector
+        ).strip().lower()
+        if site_connector not in {"primary", "oc", "cebu"}:
+            raise ValueError(
+                f"Invalid D1 backup connector for {site}: {site_connector!r}. "
+                "Use primary, oc, or cebu."
+            )
+        candidates.append((site.lower(), ip, port, site_connector))
+
     connector_prefix = "D1_BACKUP_DEVICE_IP_"
     for key in sorted(os.environ):
         if not key.startswith(connector_prefix):
             continue
         label = key[len(connector_prefix):]
+        if label in {"OC", "CEBU"} and os.getenv(f"D1_BACKUP_{label}_DEVICE_IP"):
+            # A site was already configured through its dedicated variable
+            # group; do not collect the same device twice through a fallback.
+            continue
         ip = os.getenv(key)
         if not label or not ip:
             continue
